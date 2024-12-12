@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, System.ImageList,
-  Vcl.ImgList, Vcl.ToolWin, Vcl.Menus;
+  Vcl.ImgList, Vcl.ToolWin, Vcl.Menus, Vcl.StdCtrls;
 
 type
   TMainForm = class(TForm)
@@ -37,7 +37,7 @@ begin
   begin
     CheckInForm := TCheckInForm.Create(Self);
   end;
-
-  CheckInForm.Show;end;
+  CheckInForm.Show;
+end;
 
 end.

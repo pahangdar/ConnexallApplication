@@ -4,7 +4,7 @@ object MainForm: TMainForm
   Caption = 'Main Application Form'
   ClientHeight = 600
   ClientWidth = 791
-  Color = clBtnFace
+  Color = clBtnShadow
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -12
@@ -20,10 +20,17 @@ object MainForm: TMainForm
     Width = 791
     Height = 72
     Hint = 'Main ToolBar'
+    BorderWidth = 2
     ButtonHeight = 70
     ButtonWidth = 71
     Caption = 'Main Toolbar'
+    Color = clTeal
+    Ctl3D = True
+    DrawingStyle = dsGradient
+    EdgeBorders = [ebLeft, ebTop, ebRight, ebBottom]
+    GradientEndColor = clGray
     Images = ImageListToolBarMain
+    ParentColor = False
     ParentShowHint = False
     ShowHint = True
     TabOrder = 0

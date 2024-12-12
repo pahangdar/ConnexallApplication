@@ -1,0 +1,35 @@
+HospitalReception/
+    HospitalReception.dpr
+    Forms/
+        MainFormUnit.pas
+        CheckInFormUnit.pas
+        PatientDetailsFormUnit.pas
+        SettingsFormUnit.pas
+    Modules/
+        PatientsUnit.pas
+        DoctorsUnit.pas
+        AppointmentsUnit.pas
+        AppointmentsModule.pas   // Logic to handle appointment-related operations
+        VerificationModule.pas  // Logic to handle the verification process
+        NotificationsModule.pas // (Optional) For notifications and alerts
+    DataAccess/
+        DataModuleUnit.pas
+        AppointmentsDataAccessUnit.pas
+        PatientDataAccessUnit.pas
+    Services/
+        APIClientUnit.pas
+        SyncServiceUnit.pas
+    Components/
+        CustomGridUnit.pas
+        StatusMonitorUnit.pas
+    Utils/
+        LoggerUnit.pas
+        DateUtilsUnit.pas
+        ConfigManagerUnit.pas
+    Resources/
+        Images/
+        Localization/
+        Styles/
+    Tests/
+        TestAppointmentsModule.pas
+        TestVerificationModule.pas
