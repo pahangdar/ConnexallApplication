@@ -1,0 +1,24 @@
+# Delphi build files
+*.dcu
+*.~*
+*.res
+*.identcache
+*.local
+*.groupproj.local
+__history/
+__recovery/
+Debug/
+Release/
+
+# IDE-specific files
+*.dsk
+*.local
+*.tvsconfig
+
+# Backup files
+*.bak
+*.tmp
+
+# Hidden system files
+Thumbs.db
+.DS_Store
