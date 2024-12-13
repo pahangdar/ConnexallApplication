@@ -4,14 +4,29 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls, System.Generics.Collections,
+  Vcl.Grids, AppointmentUnit;
 
 type
   TCheckInForm = class(TForm)
     Button1: TButton;
+    PanelOptions: TPanel;
+    DateTimePicker: TDateTimePicker;
+    Label1: TLabel;
+    PageControlAppointments: TPageControl;
+    TabPending: TTabSheet;
+    TabConfirming: TTabSheet;
+    TabConfirmed: TTabSheet;
+    TabNotConfirmed: TTabSheet;
+    TabCancelled: TTabSheet;
+    TabCanceld: TTabSheet;
+    StringGridPending: TStringGrid;
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Button1Click(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure DateTimePickerChange(Sender: TObject);
+    procedure PopulateGrids(Appointments: TObjectList<TAppointment>);
+    procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
   public
@@ -25,7 +40,82 @@ implementation
 
 {$R *.dfm}
 
-uses PatientUnit, DoctorUnit, AppointmentUnit, MainFormUnit;
+uses PatientUnit, DoctorUnit, MainFormUnit, AppointmentsDataAccessUnit, AppointmentsUtils;
+
+procedure TCheckInForm.PopulateGrids(Appointments: TObjectList<TAppointment>);
+var
+  Appointment: TAppointment;
+  RowIndex: Integer;
+
+  procedure AddToGrid(Grid: TStringGrid; Appointment: TAppointment);
+  begin
+    RowIndex := Grid.RowCount ;
+    Grid.RowCount := RowIndex + 1;
+    Grid.Cells[0, RowIndex] := IntToStr(RowIndex);
+    Grid.Cells[1, RowIndex] := FormatDateTime('hh:nn', Appointment.Time);
+    Grid.Cells[2, RowIndex] := Appointment.Patient.GetFullName;
+    Grid.Cells[3, RowIndex] := Appointment.Doctor.GetFullName;
+    Grid.Cells[4, RowIndex] := AppointmentStatusToString(Appointment.Status); // Show status
+  end;
+
+begin
+  // Clear all grids before populating
+  self.StringGridPending.RowCount := 1;
+//  TabConfirmingGrid.RowCount := 1;
+//  TabConfirmedGrid.RowCount := 1;
+//  TabNotConfirmedGrid.RowCount := 1;
+//  TabCancelledGrid.RowCount := 1;
+//  TabCompletedGrid.RowCount := 1;
+
+  for Appointment in Appointments do
+  begin
+//    AddToGrid(self.StringGridPending, Appointment);
+    case Appointment.Status of
+      Pending: AddToGrid(self.StringGridPending, Appointment);
+//      Confirming: AddToGrid(TabConfirmingGrid, Appointment);
+//      Confirmed: AddToGrid(TabConfirmedGrid, Appointment);
+//      NotConfirmed: AddToGrid(TabNotConfirmedGrid, Appointment);
+//      Cancelled: AddToGrid(TabCancelledGrid, Appointment);
+//      Completed: AddToGrid(TabCompletedGrid, Appointment);
+    end;
+  end;
+
+  self.StringGridPending.FixedRows := 1;
+end;
+
+
+procedure TCheckInForm.DateTimePickerChange(Sender: TObject);
+var
+  Appointments: TObjectList<TAppointment>;
+begin
+  Appointments := TAppointmentsDataAccess.GetAppointmentsByDate(DateTimePicker.Date);
+  try
+    PopulateGrids(Appointments);
+  finally
+    Appointments.Free;
+  end;end;
+
+procedure TCheckInForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := caFree;
+  CheckInForm := nil;
+  MainForm.ToolButtonCheckIn.Enabled := true;
+end;
+
+procedure TCheckInForm.FormCreate(Sender: TObject);
+begin
+  self.StringGridPending.ColCount := 5;
+  self.StringGridPending.Cells[0, 0] := 'Seq#';
+  self.StringGridPending.Cells[1, 0] := 'Time';
+  self.StringGridPending.Cells[2, 0] := 'Patient Name';
+  self.StringGridPending.Cells[3, 0] := 'Doctor Name';
+  self.StringGridPending.Cells[4, 0] := 'Status';
+end;
+
+procedure TCheckInForm.FormShow(Sender: TObject);
+begin
+  MainForm.ToolButtonCheckIn.Enabled := false;
+end;
 
 procedure TCheckInForm.Button1Click(Sender: TObject);
 var newPatient: TPatient;
@@ -42,7 +132,7 @@ begin
   end;
 
   try
-    newDoctor := TDoctor.Create(201, 'Mike', 'Cedar');
+    newDoctor := TDoctor.Create(201, 'Mike', 'Cedar', '', '', '');
     try
       ShowMessage('Doctro: ' + newDoctor.GetFullName)
     finally
@@ -68,18 +158,6 @@ begin
   except
 
   end;
-end;
-
-procedure TCheckInForm.FormClose(Sender: TObject; var Action: TCloseAction);
-begin
-  Action := caFree;
-  CheckInForm := nil;
-  MainForm.ToolButtonCheckIn.Enabled := true;
-end;
-
-procedure TCheckInForm.FormShow(Sender: TObject);
-begin
-  MainForm.ToolButtonCheckIn.Enabled := false;
 end;
 
 end.

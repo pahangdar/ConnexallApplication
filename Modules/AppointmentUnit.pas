@@ -5,7 +5,7 @@ interface
 uses PatientUnit, DoctorUnit;
 
 type
-  TAppointmentStatus = (Pending, Confirming, Confirmed, Canceld, Completed);
+  TAppointmentStatus = (Pending, Confirming, Confirmed, NotConfirmed, Cancelled, Completed);
 
   TAppointment = class
   private

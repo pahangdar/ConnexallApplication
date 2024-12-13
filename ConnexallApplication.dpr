@@ -8,7 +8,10 @@ uses
   Vcl.Styles,
   PatientUnit in 'Modules\PatientUnit.pas',
   DoctorUnit in 'Modules\DoctorUnit.pas',
-  AppointmentUnit in 'Modules\AppointmentUnit.pas';
+  AppointmentUnit in 'Modules\AppointmentUnit.pas',
+  AppointmentsDataAccessUnit in 'DataAccess\AppointmentsDataAccessUnit.pas',
+  DataModuleUnit in 'DataAccess\DataModuleUnit.pas' {DataModuleMain: TDataModule},
+  AppointmentsUtils in 'Utils\AppointmentsUtils.pas';
 
 {$R *.res}
 
@@ -18,6 +21,7 @@ begin
   Application.Title := 'Connexall Application';
   TStyleManager.TrySetStyle('Lavender Classico');
   Application.CreateForm(TMainForm, MainForm);
+  Application.CreateForm(TDataModuleMain, DataModuleMain);
   //  Application.CreateForm(TCheckInForm, CheckInForm);
   Application.Run;
 end.

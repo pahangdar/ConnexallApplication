@@ -87,7 +87,7 @@
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
         <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
-        <DCC_UnitSearchPath>Forms;Modules;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>Forms;Modules;DataAccess;Utils;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
@@ -116,6 +116,13 @@
         <DCCReference Include="Modules\PatientUnit.pas"/>
         <DCCReference Include="Modules\DoctorUnit.pas"/>
         <DCCReference Include="Modules\AppointmentUnit.pas"/>
+        <DCCReference Include="DataAccess\AppointmentsDataAccessUnit.pas"/>
+        <DCCReference Include="DataAccess\DataModuleUnit.pas">
+            <Form>DataModuleMain</Form>
+            <FormType>dfm</FormType>
+            <DesignClass>TDataModule</DesignClass>
+        </DCCReference>
+        <DCCReference Include="Utils\AppointmentsUtils.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
