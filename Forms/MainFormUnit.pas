@@ -16,6 +16,7 @@ type
     MenuPatient: TMenuItem;
     MnuItemCheckIn: TMenuItem;
     procedure ToolButtonCheckInClick(Sender: TObject);
+    procedure FormResize(Sender: TObject);
   private
     { Private declarations }
   public
@@ -31,6 +32,12 @@ implementation
 
 uses CheckInFormUnit;
 
+procedure TMainForm.FormResize(Sender: TObject);
+begin
+  if Assigned(CheckInForm) then
+    CheckInForm.SetSize;
+end;
+
 procedure TMainForm.ToolButtonCheckInClick(Sender: TObject);
 begin
   if not Assigned(CheckInForm) then
@@ -38,6 +45,7 @@ begin
     CheckInForm := TCheckInForm.Create(Self);
   end;
   CheckInForm.Show;
+  CheckInForm.SetSize;
 end;
 
 end.

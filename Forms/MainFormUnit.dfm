@@ -13,6 +13,7 @@ object MainForm: TMainForm
   FormStyle = fsMDIForm
   Menu = MainMenu
   WindowState = wsMaximized
+  OnResize = FormResize
   TextHeight = 15
   object ToolBarMain: TToolBar
     Left = 0
@@ -25,7 +26,6 @@ object MainForm: TMainForm
     ButtonWidth = 71
     Caption = 'Main Toolbar'
     Color = clTeal
-    Ctl3D = True
     DrawingStyle = dsGradient
     EdgeBorders = [ebLeft, ebTop, ebRight, ebBottom]
     GradientEndColor = clGray

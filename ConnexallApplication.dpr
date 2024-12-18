@@ -11,7 +11,8 @@ uses
   AppointmentUnit in 'Modules\AppointmentUnit.pas',
   AppointmentsDataAccessUnit in 'DataAccess\AppointmentsDataAccessUnit.pas',
   DataModuleUnit in 'DataAccess\DataModuleUnit.pas' {DataModuleMain: TDataModule},
-  AppointmentsUtils in 'Utils\AppointmentsUtils.pas';
+  AppointmentsUtils in 'Utils\AppointmentsUtils.pas',
+  WebSocketClientUnit in 'WebSocket\WebSocketClientUnit.pas';
 
 {$R *.res}
 

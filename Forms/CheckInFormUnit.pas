@@ -5,11 +5,12 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls, System.Generics.Collections,
-  Vcl.Grids, AppointmentUnit;
+  Vcl.Grids, AppointmentUnit, Vcl.Buttons, sgcBase_Classes, sgcSocket_Classes,
+  sgcTCP_Classes, sgcWebSocket_Classes, sgcWebSocket_Classes_Indy,
+  sgcWebSocket_Client, sgcWebSocket, System.Math;
 
 type
   TCheckInForm = class(TForm)
-    Button1: TButton;
     PanelOptions: TPanel;
     DateTimePicker: TDateTimePicker;
     Label1: TLabel;
@@ -19,16 +20,30 @@ type
     TabConfirmed: TTabSheet;
     TabNotConfirmed: TTabSheet;
     TabCancelled: TTabSheet;
-    TabCanceld: TTabSheet;
+    TabCompleted: TTabSheet;
     StringGridPending: TStringGrid;
+    StringGridConfirming: TStringGrid;
+    StringGridConfirmed: TStringGrid;
+    StringGridNotConfirmed: TStringGrid;
+    StringGridCancelled: TStringGrid;
+    StringGridComleted: TStringGrid;
+    LabelTotal: TLabel;
+    BitBtnRefresh: TBitBtn;
+    Memo1: TMemo;
+    FlowPanelKiosksStatus: TFlowPanel;
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
-    procedure Button1Click(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure DateTimePickerChange(Sender: TObject);
-    procedure PopulateGrids(Appointments: TObjectList<TAppointment>);
     procedure FormCreate(Sender: TObject);
+    procedure PopulateGrids(Appointments: TObjectList<TAppointment>);
+    procedure SetupGrid(Grid: TStringGrid);
+    procedure BitBtnRefreshClick(Sender: TObject);
+    procedure StringGridPendingDblClick(Sender: TObject);
+    procedure SetSize;
   private
     { Private declarations }
+    procedure HandleKioskListChanged(Sender: TObject);
+    procedure HandleVerificationResult(Sender: TObject);
   public
     { Public declarations }
   end;
@@ -40,7 +55,63 @@ implementation
 
 {$R *.dfm}
 
-uses PatientUnit, DoctorUnit, MainFormUnit, AppointmentsDataAccessUnit, AppointmentsUtils;
+uses PatientUnit, DoctorUnit, MainFormUnit, AppointmentsDataAccessUnit, AppointmentsUtils, WebSocketClientUnit;
+
+procedure TCheckInForm.HandleKioskListChanged(Sender: TObject);
+var
+  I: Integer;
+  Kiosk: TKioskInfo;
+  KioskPanel: TPanel;
+  KioskShape: TShape;
+  KioskLabel: TLabel;
+begin
+  //  WebSocketClient.GetActiveKioskApps;
+  // Clear existing controls in KioskStatusPanel
+  FlowPanelKiosksStatus.DisableAlign;
+  try
+    for I := FlowPanelKiosksStatus.ControlCount - 1 downto 0 do
+      FlowPanelKiosksStatus.Controls[I].Free;
+
+    // Iterate through the list of kiosks and create visual indicators
+    for I := 0 to WebSocketClient.KioskList.Count - 1 do
+    begin
+      Kiosk := WebSocketClient.KioskList[I];
+
+      // Create a panel for each kiosk
+      KioskPanel := TPanel.Create(FlowPanelKiosksStatus);
+      KioskPanel.Parent := FlowPanelKiosksStatus;
+      KioskPanel.Align := alLeft;
+      KioskPanel.Width := 150;
+      KioskPanel.BevelOuter := bvNone;
+      KioskPanel.Caption := '';
+
+      // Create a shape for the status indicator
+      KioskShape := TShape.Create(KioskPanel);
+      KioskShape.Parent := KioskPanel;
+      KioskShape.Shape := stCircle;
+      KioskShape.Left := 10;
+      KioskShape.Top := 10;
+      KioskShape.Width := 20;
+      KioskShape.Height := 20;
+      KioskShape.Brush.Color := IfThen(Kiosk.Status = 'waiting', clGreen, clRed);
+      KioskShape.Pen.Color := clBlack;
+
+      // Create a label for the kiosk ID
+      KioskLabel := TLabel.Create(KioskPanel);
+      KioskLabel.Parent := KioskPanel;
+      KioskLabel.Left := KioskShape.Left + KioskShape.Width + 10;
+      KioskLabel.Top := 10;
+      KioskLabel.Caption := Kiosk.AppID;
+    end;
+  finally
+    FlowPanelKiosksStatus.EnableAlign;
+  end;
+end;
+
+procedure TCheckInForm.HandleVerificationResult(Sender: TObject);
+begin
+  //ShowMessage('Verification is done.');
+end;
 
 procedure TCheckInForm.PopulateGrids(Appointments: TObjectList<TAppointment>);
 var
@@ -55,34 +126,85 @@ var
     Grid.Cells[1, RowIndex] := FormatDateTime('hh:nn', Appointment.Time);
     Grid.Cells[2, RowIndex] := Appointment.Patient.GetFullName;
     Grid.Cells[3, RowIndex] := Appointment.Doctor.GetFullName;
-    Grid.Cells[4, RowIndex] := AppointmentStatusToString(Appointment.Status); // Show status
+    Grid.Cells[4, RowIndex] := AppointmentStatusToString(Appointment.Status);
   end;
 
-begin
-  // Clear all grids before populating
-  self.StringGridPending.RowCount := 1;
-//  TabConfirmingGrid.RowCount := 1;
-//  TabConfirmedGrid.RowCount := 1;
-//  TabNotConfirmedGrid.RowCount := 1;
-//  TabCancelledGrid.RowCount := 1;
-//  TabCompletedGrid.RowCount := 1;
-
-  for Appointment in Appointments do
+  procedure AdjustGrid(Grid: TStringGrid; Status: TAppointmentStatus);
+  var
+    Col, Row: Integer;
+    MaxWidth, CellWidth: Integer;
   begin
-//    AddToGrid(self.StringGridPending, Appointment);
-    case Appointment.Status of
-      Pending: AddToGrid(self.StringGridPending, Appointment);
-//      Confirming: AddToGrid(TabConfirmingGrid, Appointment);
-//      Confirmed: AddToGrid(TabConfirmedGrid, Appointment);
-//      NotConfirmed: AddToGrid(TabNotConfirmedGrid, Appointment);
-//      Cancelled: AddToGrid(TabCancelledGrid, Appointment);
-//      Completed: AddToGrid(TabCompletedGrid, Appointment);
+    for Col := 0 to Grid.ColCount - 1 do
+    begin
+      MaxWidth := 0;
+      for Row := 0 to Grid.RowCount - 1 do
+      begin
+        CellWidth := Grid.Canvas.TextWidth(Grid.Cells[Col, Row]) + 10;
+        if CellWidth > MaxWidth then
+          MaxWidth := CellWidth;
+      end;
+      Grid.ColWidths[Col] := MaxWidth;
+    end;
+
+    if Grid.RowCount > 1 then
+      Grid.FixedRows :=1;
+
+    if Grid.Parent is TTabSheet then
+    begin
+      TTabSheet(Grid.Parent).Caption := Format(AppointmentStatusToString(Status) + ' (%d)', [Grid.RowCount - 1]);
     end;
   end;
 
-  self.StringGridPending.FixedRows := 1;
+begin
+  self.StringGridPending.RowCount := 1;
+  StringGridConfirming.RowCount := 1;
+  StringGridConfirmed.RowCount := 1;
+  StringGridNotConfirmed.RowCount := 1;
+  StringGridCancelled.RowCount := 1;
+  StringGridComleted.RowCount := 1;
+
+  for Appointment in Appointments do
+  begin
+    case Appointment.Status of
+      Pending: AddToGrid(self.StringGridPending, Appointment);
+      Confirming: AddToGrid(self.StringGridConfirming, Appointment);
+      Confirmed: AddToGrid(self.StringGridConfirmed, Appointment);
+      NotConfirmed: AddToGrid(self.StringGridNotConfirmed, Appointment);
+      Cancelled: AddToGrid(self.StringGridCancelled, Appointment);
+      Completed: AddToGrid(self.StringGridComleted, Appointment);
+    end;
+  end;
+
+  AdjustGrid(self.StringGridPending, Pending);
+  AdjustGrid(self.StringGridConfirming, Confirming);
+  AdjustGrid(self.StringGridConfirmed, Confirmed);
+  AdjustGrid(self.StringGridNotConfirmed, NotConfirmed);
+  AdjustGrid(self.StringGridCancelled, Cancelled);
+  AdjustGrid(self.StringGridComleted, Completed);
+  self.PageControlAppointments.ActivePageIndex := 0;
 end;
 
+procedure TCheckInForm.SetupGrid(Grid: TStringGrid);
+begin
+  Grid.ColCount := 5;
+  Grid.Cells[0, 0] := 'Seq#';
+  Grid.Cells[1, 0] := 'Time';
+  Grid.Cells[2, 0] := 'Patient Name';
+  Grid.Cells[3, 0] := 'Doctor Name';
+  Grid.Cells[4, 0] := 'Status';
+end;
+
+procedure TCheckInForm.StringGridPendingDblClick(Sender: TObject);
+begin
+  // Send start_verification message
+  //  StartVerification(StringGridPending.Row);
+  WebSocketClient.StartVerification(101, 'kiosk_1', '{"firstName": "John", "lastName": "Doe"}');
+end;
+
+procedure TCheckInForm.BitBtnRefreshClick(Sender: TObject);
+begin
+  self.DateTimePicker.OnChange(self.DateTimePicker);
+end;
 
 procedure TCheckInForm.DateTimePickerChange(Sender: TObject);
 var
@@ -91,9 +213,11 @@ begin
   Appointments := TAppointmentsDataAccess.GetAppointmentsByDate(DateTimePicker.Date);
   try
     PopulateGrids(Appointments);
+    self.LabelTotal.Caption := Format('Total Appointments: %d', [Appointments.Count]);
   finally
     Appointments.Free;
-  end;end;
+  end;
+end;
 
 procedure TCheckInForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
@@ -104,60 +228,37 @@ end;
 
 procedure TCheckInForm.FormCreate(Sender: TObject);
 begin
-  self.StringGridPending.ColCount := 5;
-  self.StringGridPending.Cells[0, 0] := 'Seq#';
-  self.StringGridPending.Cells[1, 0] := 'Time';
-  self.StringGridPending.Cells[2, 0] := 'Patient Name';
-  self.StringGridPending.Cells[3, 0] := 'Doctor Name';
-  self.StringGridPending.Cells[4, 0] := 'Status';
+  SetupGrid(self.StringGridPending);
+  SetupGrid(self.StringGridConfirming);
+  SetupGrid(self.StringGridConfirmed);
+  SetupGrid(self.StringGridNotConfirmed);
+  SetupGrid(self.StringGridCancelled);
+  SetupGrid(self.StringGridComleted);
+
+  WebSocketClient := TWebSocketClient.Create;
+  WebSocketClient.OnKioskListChanged := HandleKioskListChanged;
+  WebSocketClient.OnVerificationDone := HandleVerificationResult;
+
+  WebSocketClient.Connect;
+  WebSocketClient.RequestAppID;
+  if WebSocketClient.AppID <> '' then
+    self.HandleKioskListChanged(nil);
+end;
+
+procedure TCheckInForm.SetSize;
+begin
+  CheckInForm.Height := MainForm.Height - 170;
+  CheckInForm.Top := 0;
+  CheckInForm.Width := 500;
+  CheckInForm.Left := MainForm.Width - CheckInForm.Width - 20;
 end;
 
 procedure TCheckInForm.FormShow(Sender: TObject);
 begin
   MainForm.ToolButtonCheckIn.Enabled := false;
-end;
-
-procedure TCheckInForm.Button1Click(Sender: TObject);
-var newPatient: TPatient;
-    newDoctor: TDoctor;
-    newAppointment: TAppointment;
-begin
-
-  newPatient := TPatient.Create(101,'Saeid', 'Pahangdar', '438-368-8456', '9960 Bayview Ave.', EncodeDate(1971, 5, 1), 'pahangdar@gmail.com' );
-  try
-    ShowMessage('Patient: ' + newPatient.GetFullName);
-  finally
-//    newPatient.Free;
-//    ShowMessage('Free Patient');
-  end;
-
-  try
-    newDoctor := TDoctor.Create(201, 'Mike', 'Cedar', '', '', '');
-    try
-      ShowMessage('Doctro: ' + newDoctor.GetFullName)
-    finally
-//      newDoctor.Free;
-//      ShowMessage('Free Doctor')
-    end;
-  except on E : Exception do
-    ShowMessage('Error ' + E.Message)
-  end;
-
-  try
-    newAppointment := Tappointment.Create(301, EncodeDate(2024, 12, 13), EncodeTime(11, 30, 0, 0), newPatient, newDoctor, Pending);
-    try
-      ShowMessage('Appointment: Patient> ' + newAppointment.Patient.GetFullName + ' < with Doctor> ' + newAppointment.Doctor.GetFullName + ' <')
-    finally
-      newAppointment.Free;
-      Showmessage('Appointment Free');
-      newPatient.Free;
-      ShowMessage('Free Patient');
-      newDoctor.Free;
-      ShowMessage('Free Doctor')
-    end;
-  except
-
-  end;
+  self.DateTimePicker.Date := Date;
+  if Assigned(self.DateTimePicker.OnChange) then
+    self.DateTimePicker.OnChange(DateTimePicker);
 end;
 
 end.
