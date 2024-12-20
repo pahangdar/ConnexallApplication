@@ -3,7 +3,7 @@ object CheckInForm: TCheckInForm
   Top = 0
   Caption = 'Patient / Check In'
   ClientHeight = 692
-  ClientWidth = 622
+  ClientWidth = 582
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -20,12 +20,12 @@ object CheckInForm: TCheckInForm
   object PanelOptions: TPanel
     Left = 0
     Top = 0
-    Width = 622
+    Width = 582
     Height = 41
     Align = alTop
     TabOrder = 0
     DesignSize = (
-      622
+      582
       41)
     object Label1: TLabel
       Left = 16
@@ -35,7 +35,7 @@ object CheckInForm: TCheckInForm
       Caption = 'Appointment Date'
     end
     object LabelTotal: TLabel
-      Left = 473
+      Left = 433
       Top = 13
       Width = 122
       Height = 15
@@ -47,6 +47,7 @@ object CheckInForm: TCheckInForm
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
       ParentFont = False
+      ExplicitLeft = 473
     end
     object DateTimePicker: TDateTimePicker
       Left = 124
@@ -76,117 +77,601 @@ object CheckInForm: TCheckInForm
   object PageControlAppointments: TPageControl
     Left = 0
     Top = 41
-    Width = 622
-    Height = 651
+    Width = 582
+    Height = 395
     ActivePage = TabPending
     Align = alClient
     TabOrder = 1
+    ExplicitHeight = 651
     object TabPending: TTabSheet
       Caption = 'Pending'
-      object StringGridPending: TStringGrid
+      OnShow = TabPendingShow
+      object DBGridEhPendding: TDBGridEh
         Left = 0
         Top = 0
-        Width = 614
-        Height = 207
+        Width = 574
+        Height = 365
         Align = alClient
-        RowCount = 2
-        Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSelect, goFixedRowDefAlign]
+        DataSource = ClientDataSet
+        DynProps = <>
+        EvenRowColor = cl3DLight
+        IndicatorOptions = [gioShowRowIndicatorEh, gioShowRecNoEh]
+        Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit]
+        OptionsEh = [dghFixed3D, dghHighlightFocus, dghClearSelection, dghDialogFind, dghShowRecNo, dghColumnResize, dghColumnMove, dghExtendVertLines]
+        SearchPanel.Enabled = True
         TabOrder = 0
-        OnDblClick = StringGridPendingDblClick
-        ExplicitHeight = 248
-      end
-      object Memo1: TMemo
-        Left = 0
-        Top = 248
-        Width = 614
-        Height = 373
-        Align = alBottom
-        Lines.Strings = (
-          'Memo1')
-        TabOrder = 1
-      end
-      object FlowPanelKiosksStatus: TFlowPanel
-        Left = 0
-        Top = 207
-        Width = 614
-        Height = 41
-        Align = alBottom
-        AutoSize = True
-        TabOrder = 2
-        ExplicitLeft = 360
-        ExplicitTop = 136
-        ExplicitWidth = 185
+        OnDblClick = DBGridEhPenddingDblClick
+        Columns = <
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Time'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PatientName'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'DoctorName'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Status'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PhoneNumber'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Address'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'AppointmentID'
+            Footers = <>
+            Title.Caption = 'Apmt ID'
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'VerificationResult'
+            Footers = <>
+            Title.Caption = 'Verification Result'
+            Width = 120
+          end>
+        object RowDetailData: TRowDetailPanelControlEh
+        end
       end
     end
     object TabConfirming: TTabSheet
       Caption = 'Confirming'
       ImageIndex = 1
-      object StringGridConfirming: TStringGrid
+      OnShow = TabConfirmingShow
+      object DBGridEhConfirming: TDBGridEh
         Left = 0
         Top = 0
-        Width = 614
-        Height = 621
+        Width = 574
+        Height = 365
         Align = alClient
-        RowCount = 2
-        Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSelect, goFixedRowDefAlign]
+        DataSource = ClientDataSet
+        DynProps = <>
+        EvenRowColor = cl3DLight
+        IndicatorOptions = [gioShowRowIndicatorEh, gioShowRecNoEh]
+        Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit]
+        OptionsEh = [dghFixed3D, dghHighlightFocus, dghClearSelection, dghDialogFind, dghShowRecNo, dghColumnResize, dghColumnMove, dghExtendVertLines]
+        SearchPanel.Enabled = True
         TabOrder = 0
+        Columns = <
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Time'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PatientName'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'DoctorName'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Status'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PhoneNumber'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Address'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'AppointmentID'
+            Footers = <>
+            Title.Caption = 'Apmt ID'
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'VerificationResult'
+            Footers = <>
+            Title.Caption = 'Verification Result'
+            Width = 120
+          end>
+        object RowDetailData: TRowDetailPanelControlEh
+        end
       end
     end
     object TabConfirmed: TTabSheet
       Caption = 'Confirmed'
       ImageIndex = 2
-      object StringGridConfirmed: TStringGrid
+      OnShow = TabConfirmedShow
+      object DBGridEhConfirmed: TDBGridEh
         Left = 0
         Top = 0
-        Width = 614
-        Height = 621
+        Width = 574
+        Height = 365
         Align = alClient
-        RowCount = 2
-        Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSelect, goFixedRowDefAlign]
+        DataSource = ClientDataSet
+        DynProps = <>
+        EvenRowColor = cl3DLight
+        IndicatorOptions = [gioShowRowIndicatorEh, gioShowRecNoEh]
+        Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit]
+        OptionsEh = [dghFixed3D, dghHighlightFocus, dghClearSelection, dghDialogFind, dghShowRecNo, dghColumnResize, dghColumnMove, dghExtendVertLines]
+        SearchPanel.Enabled = True
         TabOrder = 0
+        Columns = <
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Time'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PatientName'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'DoctorName'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Status'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PhoneNumber'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Address'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'AppointmentID'
+            Footers = <>
+            Title.Caption = 'Apmt ID'
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'VerificationResult'
+            Footers = <>
+            Title.Caption = 'Verification Result'
+            Width = 120
+          end>
+        object RowDetailData: TRowDetailPanelControlEh
+        end
       end
     end
     object TabNotConfirmed: TTabSheet
       Caption = 'Not Confirmed'
       ImageIndex = 3
-      object StringGridNotConfirmed: TStringGrid
+      OnShow = TabNotConfirmedShow
+      object DBGridEhNotConfirmed: TDBGridEh
         Left = 0
         Top = 0
-        Width = 614
-        Height = 621
+        Width = 574
+        Height = 365
         Align = alClient
-        RowCount = 2
-        Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSelect, goFixedRowDefAlign]
+        DataSource = ClientDataSet
+        DynProps = <>
+        EvenRowColor = cl3DLight
+        IndicatorOptions = [gioShowRowIndicatorEh, gioShowRecNoEh]
+        Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit]
+        OptionsEh = [dghFixed3D, dghHighlightFocus, dghClearSelection, dghDialogFind, dghShowRecNo, dghColumnResize, dghColumnMove, dghExtendVertLines]
+        SearchPanel.Enabled = True
         TabOrder = 0
+        Columns = <
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Time'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PatientName'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'DoctorName'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Status'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PhoneNumber'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Address'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'AppointmentID'
+            Footers = <>
+            Title.Caption = 'Apmt ID'
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'VerificationResult'
+            Footers = <>
+            Title.Caption = 'Verification Result'
+            Width = 120
+          end>
+        object RowDetailData: TRowDetailPanelControlEh
+        end
       end
     end
     object TabCancelled: TTabSheet
       Caption = 'Cancelled'
       ImageIndex = 4
-      object StringGridCancelled: TStringGrid
+      OnShow = TabCancelledShow
+      object DBGridEhCancelled: TDBGridEh
         Left = 0
         Top = 0
-        Width = 614
-        Height = 621
+        Width = 574
+        Height = 365
         Align = alClient
-        RowCount = 2
-        Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSelect, goFixedRowDefAlign]
+        DataSource = ClientDataSet
+        DynProps = <>
+        EvenRowColor = cl3DLight
+        IndicatorOptions = [gioShowRowIndicatorEh, gioShowRecNoEh]
+        Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit]
+        OptionsEh = [dghFixed3D, dghHighlightFocus, dghClearSelection, dghDialogFind, dghShowRecNo, dghColumnResize, dghColumnMove, dghExtendVertLines]
+        SearchPanel.Enabled = True
         TabOrder = 0
+        Columns = <
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Time'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PatientName'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'DoctorName'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Status'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PhoneNumber'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Address'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'AppointmentID'
+            Footers = <>
+            Title.Caption = 'Apmt ID'
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'VerificationResult'
+            Footers = <>
+            Title.Caption = 'Verification Result'
+            Width = 120
+          end>
+        object RowDetailData: TRowDetailPanelControlEh
+        end
       end
     end
     object TabCompleted: TTabSheet
       Caption = 'Completed'
       ImageIndex = 5
-      object StringGridComleted: TStringGrid
+      OnShow = TabCompletedShow
+      object DBGridEhCompleted: TDBGridEh
         Left = 0
         Top = 0
-        Width = 614
-        Height = 621
+        Width = 574
+        Height = 365
         Align = alClient
-        RowCount = 2
-        Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSelect, goFixedRowDefAlign]
+        DataSource = ClientDataSet
+        DynProps = <>
+        EvenRowColor = cl3DLight
+        IndicatorOptions = [gioShowRowIndicatorEh, gioShowRecNoEh]
+        Options = [dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgRowSelect, dgAlwaysShowSelection, dgConfirmDelete, dgCancelOnExit]
+        OptionsEh = [dghFixed3D, dghHighlightFocus, dghClearSelection, dghDialogFind, dghShowRecNo, dghColumnResize, dghColumnMove, dghExtendVertLines]
+        SearchPanel.Enabled = True
         TabOrder = 0
+        Columns = <
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Time'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PatientName'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'DoctorName'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Status'
+            Footers = <>
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'PhoneNumber'
+            Footers = <>
+            Width = 100
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'Address'
+            Footers = <>
+            Width = 150
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'AppointmentID'
+            Footers = <>
+            Title.Caption = 'Apmt ID'
+            Width = 60
+          end
+          item
+            CellButtons = <>
+            DynProps = <>
+            EditButtons = <>
+            FieldName = 'VerificationResult'
+            Footers = <>
+            Title.Caption = 'Verification Result'
+            Width = 120
+          end>
+        object RowDetailData: TRowDetailPanelControlEh
+        end
       end
     end
+  end
+  object Memo1: TMemo
+    Left = 0
+    Top = 479
+    Width = 582
+    Height = 213
+    Align = alBottom
+    Lines.Strings = (
+      'Memo1')
+    TabOrder = 2
+    Visible = False
+    ExplicitTop = 408
+    ExplicitWidth = 574
+  end
+  object FlowPanelKiosksStatus: TFlowPanel
+    Left = 0
+    Top = 436
+    Width = 582
+    Height = 43
+    Align = alBottom
+    AutoSize = True
+    Constraints.MinHeight = 41
+    TabOrder = 3
+    ExplicitWidth = 574
+    object PanelConnectionStatus: TPanel
+      Left = 1
+      Top = 1
+      Width = 185
+      Height = 41
+      BevelOuter = bvLowered
+      TabOrder = 0
+      object LabelConnectionStatus: TLabel
+        Left = 10
+        Top = 12
+        Width = 32
+        Height = 15
+        Caption = 'Status'
+      end
+      object BitBtnConnect: TBitBtn
+        Left = 104
+        Top = 8
+        Width = 75
+        Height = 25
+        Caption = 'Connect'
+        Kind = bkRetry
+        NumGlyphs = 2
+        TabOrder = 0
+        OnClick = BitBtnConnectClick
+      end
+    end
+  end
+  object ClientDataSet: TClientDataSet
+    Aggregates = <>
+    Params = <>
+    Left = 363
+    Top = 158
   end
 end

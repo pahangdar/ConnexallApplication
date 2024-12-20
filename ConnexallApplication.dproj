@@ -124,6 +124,10 @@
         </DCCReference>
         <DCCReference Include="Utils\AppointmentsUtils.pas"/>
         <DCCReference Include="WebSocket\WebSocketClientUnit.pas"/>
+        <DCCReference Include="Forms\StartVerificationFormUnit.pas">
+            <Form>StartVerificationForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

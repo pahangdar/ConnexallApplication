@@ -12,7 +12,8 @@ uses
   AppointmentsDataAccessUnit in 'DataAccess\AppointmentsDataAccessUnit.pas',
   DataModuleUnit in 'DataAccess\DataModuleUnit.pas' {DataModuleMain: TDataModule},
   AppointmentsUtils in 'Utils\AppointmentsUtils.pas',
-  WebSocketClientUnit in 'WebSocket\WebSocketClientUnit.pas';
+  WebSocketClientUnit in 'WebSocket\WebSocketClientUnit.pas',
+  StartVerificationFormUnit in 'Forms\StartVerificationFormUnit.pas' {StartVerificationForm};
 
 {$R *.res}
 
@@ -23,6 +24,7 @@ begin
   TStyleManager.TrySetStyle('Lavender Classico');
   Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TDataModuleMain, DataModuleMain);
+  Application.CreateForm(TStartVerificationForm, StartVerificationForm);
   //  Application.CreateForm(TCheckInForm, CheckInForm);
   Application.Run;
 end.
