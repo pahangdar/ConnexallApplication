@@ -82,7 +82,6 @@ object CheckInForm: TCheckInForm
     ActivePage = TabPending
     Align = alClient
     TabOrder = 1
-    ExplicitHeight = 651
     object TabPending: TTabSheet
       Caption = 'Pending'
       OnShow = TabPendingShow
@@ -628,8 +627,6 @@ object CheckInForm: TCheckInForm
       'Memo1')
     TabOrder = 2
     Visible = False
-    ExplicitTop = 408
-    ExplicitWidth = 574
   end
   object FlowPanelKiosksStatus: TFlowPanel
     Left = 0
@@ -640,7 +637,6 @@ object CheckInForm: TCheckInForm
     AutoSize = True
     Constraints.MinHeight = 41
     TabOrder = 3
-    ExplicitWidth = 574
     object PanelConnectionStatus: TPanel
       Left = 1
       Top = 1

@@ -35,7 +35,7 @@ uses CheckInFormUnit;
 procedure TMainForm.FormResize(Sender: TObject);
 begin
   if Assigned(CheckInForm) then
-    CheckInForm.SetSize;
+    CheckInForm.SetFormSize;
 end;
 
 procedure TMainForm.ToolButtonCheckInClick(Sender: TObject);
@@ -45,7 +45,7 @@ begin
     CheckInForm := TCheckInForm.Create(Self);
   end;
   CheckInForm.Show;
-  CheckInForm.SetSize;
+  CheckInForm.SetFormSize;
 end;
 
 end.

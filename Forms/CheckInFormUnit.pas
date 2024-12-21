@@ -43,11 +43,6 @@ type
     procedure DateTimePickerChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure BitBtnRefreshClick(Sender: TObject);
-    procedure SetSize;
-    procedure SetupClientDataSet;
-    procedure LoadAppointments(Appointments: TObjectList<TAppointment>);
-    procedure FilterAppointmentsByStatus(Status: string);
-    procedure CheckConnectionStatus;
     procedure TabPendingShow(Sender: TObject);
     procedure BitBtnConnectClick(Sender: TObject);
     procedure DBGridEhPenddingDblClick(Sender: TObject);
@@ -56,6 +51,14 @@ type
     procedure TabCompletedShow(Sender: TObject);
     procedure TabConfirmedShow(Sender: TObject);
     procedure TabNotConfirmedShow(Sender: TObject);
+
+    procedure SetupClientDataSet;
+    procedure CheckConnectionStatus;
+    procedure LoadAppointments(Appointments: TObjectList<TAppointment>);
+    procedure LoadAppointmentsForSelectedDate;
+    procedure FilterAppointmentsByStatus(Status: string);
+    procedure SetFormSize;
+
   private
     { Private declarations }
     procedure HandleKioskListChanged(Sender: TObject);
@@ -75,7 +78,22 @@ implementation
 {$R *.dfm}
 
 uses PatientUnit, DoctorUnit, MainFormUnit, AppointmentsDataAccessUnit, AppointmentsUtils,
-      StartVerificationFormUnit;
+      StartVerificationFormUnit, DataModuleUnit;
+
+procedure TCheckInForm.LoadAppointmentsForSelectedDate;
+var
+  Appointments: TObjectList<TAppointment>;
+begin
+
+  Appointments := TAppointmentsDataAccess.GetAppointmentsByDate(DateTimePicker.Date);
+  try
+    LoadAppointments(Appointments);
+    self.LabelTotal.Caption := Format('Total Appointments: %d', [Appointments.Count]);
+    self.ClientDataSet.First;
+  finally
+    Appointments.Free;
+  end;
+end;
 
 procedure TCheckInForm.HandleKioskListChanged(Sender: TObject);
 var
@@ -206,7 +224,7 @@ end;
 
 procedure TCheckInForm.BitBtnRefreshClick(Sender: TObject);
 begin
-  self.DateTimePicker.OnChange(self.DateTimePicker);
+  LoadAppointmentsForSelectedDate;
 end;
 
 procedure TCheckInForm.FilterAppointmentsByStatus(Status: string);
@@ -247,17 +265,8 @@ begin
 end;
 
 procedure TCheckInForm.DateTimePickerChange(Sender: TObject);
-var
-  Appointments: TObjectList<TAppointment>;
 begin
-  Appointments := TAppointmentsDataAccess.GetAppointmentsByDate(DateTimePicker.Date);
-  try
-    LoadAppointments(Appointments);
-    self.LabelTotal.Caption := Format('Total Appointments: %d', [Appointments.Count]);
-    self.ClientDataSet.First;
-  finally
-    Appointments.Free;
-  end;
+  LoadAppointmentsForSelectedDate;
 end;
 
 procedure TCheckInForm.DBGridEhPenddingDblClick(Sender: TObject);
@@ -270,9 +279,15 @@ begin
   AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
   if AppointmentID = 0 then
     Exit;
-
   Appointment := nil;
   Appointment := TAppointmentsDataAccess.GetAppointment(AppointmentID);
+  if Appointment.Status <> Pending then
+  begin
+    ShowMessage('Error: Sttus of this appointment is changed before');
+    LoadAppointmentsForSelectedDate;
+    exit;
+  end;
+
   NewStatus := 'Confirming';
   try
     // Show kiosk selection form
@@ -281,7 +296,6 @@ begin
       LabelPatientName.Caption := Appointment.Patient.GetFullName;
       PopulateKioskList(WebSocketClient.KioskList);
       ShowModal;
-
       if Confirmed and (SelectedKiosk <> '') then
       begin
         WebSocketClient.StartVerification(
@@ -290,7 +304,6 @@ begin
           SelectedKiosk,
           Appointment.Patient
         );
-
         Success := TAppointmentsDataAccess.UpdateAppointmentStatus(AppointmentID, NewStatus);
         if Success then
         begin
@@ -312,6 +325,10 @@ end;
 
 procedure TCheckInForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
+  WebSocketClient.OnKioskListChanged := nil;
+  WebSocketClient.OnVerificationDone := nil;
+  WebSocketClient.OnRecievedMessage := nil;
+  WebSocketClient.OnAppIDAssigned := nil;
   Action := caFree;
   CheckInForm := nil;
   MainForm.ToolButtonCheckIn.Enabled := true;
@@ -362,18 +379,19 @@ procedure TCheckInForm.FormCreate(Sender: TObject);
 begin
   SetupClientDataSet;
 
-  WebSocketClient := TWebSocketClient.Create;
+  WebSocketClient := DataModuleMain.GetWebSocketClient;
   WebSocketClient.OnKioskListChanged := HandleKioskListChanged;
   WebSocketClient.OnVerificationDone := HandleVerificationResult;
   WebSocketClient.OnRecievedMessage := HandleRecievedMessage;
   WebSocketClient.OnAppIDAssigned := HandleAppIDAssigned;
 
   WebSocketClient.Connect;
-
+  if WebSocketClient.AppID <> '' then
+    HandleKioskListChanged(nil);
   CheckConnectionStatus;
 end;
 
-procedure TCheckInForm.SetSize;
+procedure TCheckInForm.SetFormSize;
 begin
   CheckInForm.Width := 800;
   CheckInForm.Height := MainForm.Height - 170;
@@ -385,8 +403,8 @@ procedure TCheckInForm.FormShow(Sender: TObject);
 begin
   MainForm.ToolButtonCheckIn.Enabled := false;
   self.DateTimePicker.Date := Date;
-  if Assigned(self.DateTimePicker.OnChange) then
-    self.DateTimePicker.OnChange(DateTimePicker);
+
+  LoadAppointmentsForSelectedDate;
 
   self.PageControlAppointments.ActivePageIndex := 0;
 end;

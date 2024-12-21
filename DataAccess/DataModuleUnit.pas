@@ -8,7 +8,8 @@ uses
   FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys, FireDAC.VCLUI.Wait,
   FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt, Data.DB,
   FireDAC.Comp.DataSet, FireDAC.Comp.Client, FireDAC.Phys.MSSQL,
-  FireDAC.Phys.MSSQLDef;
+  FireDAC.Phys.MSSQLDef,
+  WebSocketClientUnit;
 
 type
   TDataModuleMain = class(TDataModule)
@@ -17,9 +18,11 @@ type
     FDConnection1: TFDConnection;
   private
     { Private declarations }
+    FWebSocketClient: TWebSocketClient;
   public
     { Public declarations }
     procedure ConnectToDatabase;
+    function GetWebSocketClient: TWebSocketClient;
   end;
 
 var
@@ -48,6 +51,16 @@ begin
 //  FDConnection.LoginPrompt := False;
 //  FDConnection.Connected := True;
   FDConnection1.Connected := True;
+end;
+
+function TDataModuleMain.GetWebSocketClient: TWebSocketClient;
+begin
+  if not Assigned(FWebSocketClient) then
+  begin
+    FWebSocketClient := TWebSocketClient.Create;
+    FWebSocketClient.Connect;
+  end;
+  Result := FWebSocketClient;
 end;
 
 end.
