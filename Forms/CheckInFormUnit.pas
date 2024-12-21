@@ -63,7 +63,7 @@ type
     { Private declarations }
     procedure HandleKioskListChanged(Sender: TObject);
     procedure HandleVerificationResult(Sender: TObject;
-       AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>);
+       AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean);
     procedure HandleRecievedMessage(Sender: TObject; const Message: string);
     procedure HandleAppIDAssigned(Sender: TObject);
   public
@@ -138,7 +138,7 @@ begin
 end;
 
 procedure TCheckInForm.HandleVerificationResult(Sender: TObject;
-  AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>);
+  AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean);
 var
   Detail: TVerificationResultDetail;
   DetailsStr: string;
@@ -149,16 +149,12 @@ begin
   for Detail in Details do
     DetailsStr := DetailsStr + Format('%s: %s', [Detail.Question, BoolToStr(Detail.IsCorrect, True)]) + sLineBreak;
 
-
-  NewStatus := Result;
-
-  Success := TAppointmentsDataAccess.UpdateAppointmentStatus(AppointmentID, NewStatus);
-  if Success then
+  if SuccessStatusUpdate then
   begin
     if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
     begin
       ClientDataSet.Edit;
-      ClientDataSet.FieldByName('Status').AsString := NewStatus;
+      ClientDataSet.FieldByName('Status').AsString := Result;
       ClientDataSet.Post;
     end;
   end
@@ -285,6 +281,7 @@ begin
   begin
     ShowMessage('Error: Sttus of this appointment is changed before');
     LoadAppointmentsForSelectedDate;
+    Appointment.Free;
     exit;
   end;
 
@@ -298,13 +295,12 @@ begin
       ShowModal;
       if Confirmed and (SelectedKiosk <> '') then
       begin
-        WebSocketClient.StartVerification(
+        Success := WebSocketClient.StartVerification(
           Appointment.AppointmentID,
           WebSocketClient.AppID,
           SelectedKiosk,
           Appointment.Patient
         );
-        Success := TAppointmentsDataAccess.UpdateAppointmentStatus(AppointmentID, NewStatus);
         if Success then
         begin
           if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then

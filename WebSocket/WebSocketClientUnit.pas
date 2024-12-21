@@ -15,9 +15,8 @@ type
     Question: string;
     IsCorrect: Boolean;
   end;
-
   TOnVerificationDoneEvent = procedure(Sender: TObject; AppointmentID: Integer;
-    Result: string; Details: TArray<TVerificationResultDetail>) of object;
+    Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean) of object;
   TRecievedMessageEvent = procedure(Sender: TObject; const Message: string) of object;
 
   TWebSocketClient = class
@@ -43,7 +42,7 @@ type
     procedure Connect;
     procedure RequestAppID;
     procedure GetActiveKioskApps;
-    procedure StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient);
+    function StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient): Boolean;
 
     property AppID: string read FAppID;
     property WebSocket: TsgcWebSocketClient read FWebSocket;
@@ -54,6 +53,7 @@ type
     property OnAppIDAssigned: TNotifyEvent read FOnAppIDAssigned write FOnAppIDAssigned;
     property OnDisconnect: TNotifyEvent read FOnDisconnect write FOnDisconnect;
     property OnError: TNotifyEvent read FOnError write FOnError;
+    function UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
   end;
 
 var
@@ -62,6 +62,10 @@ var
 implementation
 
 { TWebSocketClient }
+
+
+uses
+  AppointmentsDataAccessUnit;
 
 constructor TWebSocketClient.Create;
 begin
@@ -121,6 +125,15 @@ begin
     FOnError(Self);
 end;
 
+function TWebSocketClient.UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
+begin
+  Result := TAppointmentsDataAccess.UpdateAppointmentStatus(AppointmentID, NewStatus);
+//  if Result then
+//    ShowMessage(Format('Appointment %d status updated to %s', [AppointmentID, NewStatus]))
+//  else
+//    ShowMessage(Format('Failed to update status for Appointment %d', [AppointmentID]));
+end;
+
 procedure TWebSocketClient.RequestAppID;
 begin
   if FWebSocket.Active then
@@ -133,11 +146,13 @@ begin
     FWebSocket.WriteData('{"type": "get_active_kiosk_apps"}');
 end;
 
-procedure TWebSocketClient.StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient);
+function TWebSocketClient.StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient): Boolean;
 var
   VerificationJSON: TJSONObject;
   PatientJSON: TJSONObject;
+  NewStatus: string;
 begin
+  Result := false;
   if not FWebSocket.Active then
   begin
     raise Exception.Create('WebSocket connection is not active. Cannot send verification request.');
@@ -165,6 +180,8 @@ begin
 
     // Send the JSON message
     FWebSocket.WriteData(VerificationJSON.ToJSON);
+    NewStatus := 'Confirming';
+    Result := UpdateAppointmentStatus(AppointmentID, NewStatus);
   finally
     VerificationJSON.Free;
   end;
@@ -181,6 +198,7 @@ var
   DetailArray: TArray<TVerificationResultDetail>;
   Detail: TVerificationResultDetail;
   I: Integer;
+  SuccessStatusUpdate: Boolean;
 begin
   JSON := nil;
   try
@@ -217,7 +235,6 @@ begin
       AppointmentID := JSON.GetValue<Integer>('appointmentId');
       ResultValue := JSON.GetValue<string>('result');
       ResultDetails := JSON.GetValue<TJSONArray>('resultDetails');
-
       SetLength(DetailArray, ResultDetails.Count);
       for I := 0 to ResultDetails.Count - 1 do
       begin
@@ -226,9 +243,9 @@ begin
         Detail.IsCorrect := DetailJSON.GetValue<Boolean>('isCorrect');
         DetailArray[I] := Detail;
       end;
-
+      SuccessStatusUpdate := UpdateAppointmentStatus(AppointmentID, ResultValue);
       if Assigned(FOnVerificationDone) then
-        FOnVerificationDone(Self, AppointmentID, ResultValue, DetailArray);
+        FOnVerificationDone(Self, AppointmentID, ResultValue, DetailArray, SuccessStatusUpdate);
     end
     else if MsgType = 'kiosk_list_changed' then
     begin
