@@ -13,6 +13,8 @@ object MainForm: TMainForm
   FormStyle = fsMDIForm
   Menu = MainMenu
   WindowState = wsMaximized
+  OnClose = FormClose
+  OnCreate = FormCreate
   OnResize = FormResize
   TextHeight = 15
   object ToolBarMain: TToolBar

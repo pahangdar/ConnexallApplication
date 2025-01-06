@@ -43,6 +43,7 @@ type
     procedure RequestAppID;
     procedure GetActiveKioskApps;
     function StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient): Boolean;
+    function UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
 
     property AppID: string read FAppID;
     property WebSocket: TsgcWebSocketClient read FWebSocket;
@@ -53,16 +54,11 @@ type
     property OnAppIDAssigned: TNotifyEvent read FOnAppIDAssigned write FOnAppIDAssigned;
     property OnDisconnect: TNotifyEvent read FOnDisconnect write FOnDisconnect;
     property OnError: TNotifyEvent read FOnError write FOnError;
-    function UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
   end;
-
-var
-  WebSocketClient: TWebSocketClient;
 
 implementation
 
 { TWebSocketClient }
-
 
 uses
   AppointmentsDataAccessUnit;

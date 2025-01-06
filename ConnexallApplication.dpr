@@ -13,7 +13,8 @@ uses
   DataModuleUnit in 'DataAccess\DataModuleUnit.pas' {DataModuleMain: TDataModule},
   AppointmentsUtils in 'Utils\AppointmentsUtils.pas',
   WebSocketClientUnit in 'WebSocket\WebSocketClientUnit.pas',
-  StartVerificationFormUnit in 'Forms\StartVerificationFormUnit.pas' {StartVerificationForm};
+  StartVerificationFormUnit in 'Forms\StartVerificationFormUnit.pas' {StartVerificationForm},
+  AppointmentTabUnit in 'Modules\AppointmentTabUnit.pas';
 
 {$R *.res}
 
@@ -22,8 +23,8 @@ begin
   Application.MainFormOnTaskbar := True;
   Application.Title := 'Connexall Application';
   TStyleManager.TrySetStyle('Lavender Classico');
-  Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TDataModuleMain, DataModuleMain);
+  Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TStartVerificationForm, StartVerificationForm);
   //  Application.CreateForm(TCheckInForm, CheckInForm);
   Application.Run;

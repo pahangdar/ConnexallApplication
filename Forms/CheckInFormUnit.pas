@@ -10,7 +10,7 @@ uses
   sgcWebSocket_Client, sgcWebSocket, System.Math, DBGridEhGrouping, ToolCtrlsEh,
   DBGridEhToolCtrls, DynVarsEh, EhLibVCL, GridsEh, DBAxisGridsEh, DBGridEh,
   Data.DB, Datasnap.DBClient,
-  WebSocketClientUnit;
+  AppointmentsUtils, WebSocketClientUnit, AppointmentTabUnit, Vcl.Menus;
 
 type
   TCheckInForm = class(TForm)
@@ -18,49 +18,46 @@ type
     DateTimePicker: TDateTimePicker;
     Label1: TLabel;
     PageControlAppointments: TPageControl;
-    TabPending: TTabSheet;
-    TabConfirming: TTabSheet;
-    TabConfirmed: TTabSheet;
-    TabNotConfirmed: TTabSheet;
-    TabCancelled: TTabSheet;
-    TabCompleted: TTabSheet;
     LabelTotal: TLabel;
     BitBtnRefresh: TBitBtn;
     Memo1: TMemo;
     FlowPanelKiosksStatus: TFlowPanel;
-    DBGridEhPendding: TDBGridEh;
     ClientDataSet: TClientDataSet;
     PanelConnectionStatus: TPanel;
     LabelConnectionStatus: TLabel;
     BitBtnConnect: TBitBtn;
-    DBGridEhConfirming: TDBGridEh;
-    DBGridEhConfirmed: TDBGridEh;
-    DBGridEhNotConfirmed: TDBGridEh;
-    DBGridEhCancelled: TDBGridEh;
-    DBGridEhCompleted: TDBGridEh;
+    PopupMenuAppointment: TPopupMenu;
+    miPendingStartVerification: TMenuItem;
+    miPendingCancel: TMenuItem;
+    miNotConfirmedConfirmed: TMenuItem;
+    miConfirmedComplete: TMenuItem;
+    miNotConfirmedPending: TMenuItem;
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormShow(Sender: TObject);
     procedure DateTimePickerChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure BitBtnRefreshClick(Sender: TObject);
-    procedure TabPendingShow(Sender: TObject);
     procedure BitBtnConnectClick(Sender: TObject);
-    procedure DBGridEhPenddingDblClick(Sender: TObject);
-    procedure TabConfirmingShow(Sender: TObject);
-    procedure TabCancelledShow(Sender: TObject);
-    procedure TabCompletedShow(Sender: TObject);
-    procedure TabConfirmedShow(Sender: TObject);
-    procedure TabNotConfirmedShow(Sender: TObject);
+    procedure miPendingStartVerificationClick(Sender: TObject);
 
     procedure SetupClientDataSet;
     procedure CheckConnectionStatus;
     procedure LoadAppointments(Appointments: TObjectList<TAppointment>);
     procedure LoadAppointmentsForSelectedDate;
-    procedure FilterAppointmentsByStatus(Status: string);
+    function  FilterAppointmentsByStatus(const Status: string): Integer;
     procedure SetFormSize;
+    procedure InitializeTabs;
+    procedure IncrementRecordCount(Status: TAppointmentStatus);
+    procedure DecrementRecordCount(Status: TAppointmentStatus);
+    procedure miPendingCancelClick(Sender: TObject);
+    procedure miNotConfirmedConfirmedClick(Sender: TObject);
+    procedure miConfirmedCompleteClick(Sender: TObject);
+    procedure miNotConfirmedPendingClick(Sender: TObject);
 
   private
     { Private declarations }
+    FWebSocketClient: TWebSocketClient;
+    AppointmentTabs: array[TAppointmentStatus] of TAppointmentTab;
     procedure HandleKioskListChanged(Sender: TObject);
     procedure HandleVerificationResult(Sender: TObject;
        AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean);
@@ -68,6 +65,7 @@ type
     procedure HandleAppIDAssigned(Sender: TObject);
   public
     { Public declarations }
+    property WebSocketClient: TWebSocketClient read FWebSocketClient write FWebSocketClient;
   end;
 
 var
@@ -77,21 +75,196 @@ implementation
 
 {$R *.dfm}
 
-uses PatientUnit, DoctorUnit, MainFormUnit, AppointmentsDataAccessUnit, AppointmentsUtils,
+uses PatientUnit, DoctorUnit, MainFormUnit, AppointmentsDataAccessUnit,
       StartVerificationFormUnit, DataModuleUnit;
+
+procedure TCheckInForm.IncrementRecordCount(Status: TAppointmentStatus);
+begin
+  if Assigned(AppointmentTabs[Status]) then
+    AppointmentTabs[Status].IncrementRecordCount;
+end;
+
+procedure TCheckInForm.DecrementRecordCount(Status: TAppointmentStatus);
+begin
+  if Assigned(AppointmentTabs[Status]) then
+    AppointmentTabs[Status].DecrementRecordCount;
+end;
+
+procedure TCheckInForm.InitializeTabs;
+var
+  Status: TAppointmentStatus;
+begin
+  for Status := Low(TAppointmentStatus) to High(TAppointmentStatus) do
+    AppointmentTabs[Status] := TAppointmentTab.Create(
+      Status,
+      PageControlAppointments,
+      AppointmentStatusToString(Status),
+      ClientDataSet,
+      FilterAppointmentsByStatus,
+      PopupMenuAppointment
+    );
+end;
 
 procedure TCheckInForm.LoadAppointmentsForSelectedDate;
 var
   Appointments: TObjectList<TAppointment>;
+  CountByStatus: array[TAppointmentStatus] of Integer;
+  Status: TAppointmentStatus;
+  Appointment: TAppointment;
 begin
+  for Status := Low(TAppointmentStatus) to High(TAppointmentStatus) do
+    CountByStatus[Status] := 0;
 
   Appointments := TAppointmentsDataAccess.GetAppointmentsByDate(DateTimePicker.Date);
   try
+    for Appointment in Appointments do
+      Inc(CountByStatus[Appointment.Status]);
+
+    for Status := Low(TAppointmentStatus) to High(TAppointmentStatus) do
+      if Assigned(AppointmentTabs[Status]) then
+         AppointmentTabs[Status].RecordCount := CountByStatus[Status];
+
     LoadAppointments(Appointments);
     self.LabelTotal.Caption := Format('Total Appointments: %d', [Appointments.Count]);
     self.ClientDataSet.First;
   finally
     Appointments.Free;
+  end;
+end;
+
+procedure TCheckInForm.miConfirmedCompleteClick(Sender: TObject);
+var
+  AppointmentID: Integer;
+begin
+  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
+  if AppointmentID = 0 then
+    Exit;
+
+  if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
+  begin
+    ClientDataSet.Edit;
+    ClientDataSet.FieldByName('Status').AsString := 'Completed';
+    ClientDataSet.Post;
+    DecrementRecordCount(Confirmed);
+    IncrementRecordCount(Completed);
+  end;
+end;
+
+procedure TCheckInForm.miNotConfirmedConfirmedClick(Sender: TObject);
+var
+  AppointmentID: Integer;
+begin
+  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
+  if AppointmentID = 0 then
+    Exit;
+
+  if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
+  begin
+    ClientDataSet.Edit;
+    ClientDataSet.FieldByName('Status').AsString := 'Confirmed';
+    ClientDataSet.Post;
+    DecrementRecordCount(NotConfirmed);
+    IncrementRecordCount(Confirmed);
+  end;
+end;
+
+procedure TCheckInForm.miNotConfirmedPendingClick(Sender: TObject);
+var
+  AppointmentID: Integer;
+begin
+  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
+  if AppointmentID = 0 then
+    Exit;
+
+  if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
+  begin
+    ClientDataSet.Edit;
+    ClientDataSet.FieldByName('Status').AsString := 'Pending';
+    ClientDataSet.Post;
+    DecrementRecordCount(NotConfirmed);
+    IncrementRecordCount(Pending);
+  end;
+end;
+
+procedure TCheckInForm.miPendingCancelClick(Sender: TObject);
+var
+  AppointmentID: Integer;
+begin
+  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
+  if AppointmentID = 0 then
+    Exit;
+
+  if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
+  begin
+    ClientDataSet.Edit;
+    ClientDataSet.FieldByName('Status').AsString := 'Cancelled';
+    ClientDataSet.Post;
+    DecrementRecordCount(Pending);
+    IncrementRecordCount(Cancelled);
+  end;
+end;
+
+procedure TCheckInForm.miPendingStartVerificationClick(Sender: TObject);
+var
+  AppointmentID: Integer;
+  Appointment: TAppointment;
+  NewStatus: string;
+  Success: Boolean;
+begin
+  if WebSocketClient.AppID = '' then
+  begin
+    ShowMessage('Error, Connection to Server is not ready!');
+    exit;
+  end;
+
+  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
+  if AppointmentID = 0 then
+    Exit;
+
+  Appointment := nil;
+  Appointment := TAppointmentsDataAccess.GetAppointment(AppointmentID);
+  if Appointment.Status <> Pending then
+  begin
+    ShowMessage('Error: Sttus of this appointment is changed before');
+    LoadAppointmentsForSelectedDate;
+    Appointment.Free;
+    exit;
+  end;
+
+  NewStatus := 'Confirming';
+  try
+    // Show kiosk selection form
+    with StartVerificationForm do
+    begin
+      LabelPatientName.Caption := Appointment.Patient.GetFullName;
+      PopulateKioskList(WebSocketClient.KioskList);
+      ShowModal;
+      if Confirmed and (SelectedKiosk <> '') then
+      begin
+        Success := WebSocketClient.StartVerification(
+          Appointment.AppointmentID,
+          WebSocketClient.AppID,
+          SelectedKiosk,
+          Appointment.Patient
+        );
+        if Success then
+        begin
+          if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
+          begin
+            ClientDataSet.Edit;
+            ClientDataSet.FieldByName('Status').AsString := NewStatus;
+            ClientDataSet.Post;
+          end;
+
+          DecrementRecordCount(Pending);
+          IncrementRecordCount(Confirming);
+        end
+        else
+          ShowMessage('Error updating appointment status in database.');
+      end;
+    end;
+  finally
+    Appointment.Free;
   end;
 end;
 
@@ -142,8 +315,7 @@ procedure TCheckInForm.HandleVerificationResult(Sender: TObject;
 var
   Detail: TVerificationResultDetail;
   DetailsStr: string;
-  Success: Boolean;
-  NewStatus: string;
+  ResultStatus: TAppointmentStatus;
 begin
   DetailsStr := '';
   for Detail in Details do
@@ -151,12 +323,21 @@ begin
 
   if SuccessStatusUpdate then
   begin
+    ClientDataSet.Filtered := false;
     if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
     begin
       ClientDataSet.Edit;
       ClientDataSet.FieldByName('Status').AsString := Result;
       ClientDataSet.Post;
     end;
+    ClientDataSet.Filtered := true;
+    if Result = 'Confirmed' then
+       ResultStatus := Confirmed
+    else
+      ResultStatus := NotConfirmed;
+
+    DecrementRecordCount(Confirming);
+    IncrementRecordCount(ResultStatus);
   end
   else
     ShowMessage('Error updating appointment status in database.');
@@ -178,36 +359,6 @@ begin
   CheckConnectionStatus;
 end;
 
-procedure TCheckInForm.TabCancelledShow(Sender: TObject);
-begin
-  FilterAppointmentsByStatus('Cancelled');
-end;
-
-procedure TCheckInForm.TabCompletedShow(Sender: TObject);
-begin
-  FilterAppointmentsByStatus('Completed');
-end;
-
-procedure TCheckInForm.TabConfirmedShow(Sender: TObject);
-begin
-  FilterAppointmentsByStatus('Confirmed');
-end;
-
-procedure TCheckInForm.TabConfirmingShow(Sender: TObject);
-begin
-  FilterAppointmentsByStatus('Confirming');
-end;
-
-procedure TCheckInForm.TabNotConfirmedShow(Sender: TObject);
-begin
-  FilterAppointmentsByStatus('Not Confirmed');
-end;
-
-procedure TCheckInForm.TabPendingShow(Sender: TObject);
-begin
-  FilterAppointmentsByStatus('Pending');
-end;
-
 procedure TCheckInForm.BitBtnConnectClick(Sender: TObject);
 begin
   if not WebSocketClient.WebSocket.Active then
@@ -223,11 +374,12 @@ begin
   LoadAppointmentsForSelectedDate;
 end;
 
-procedure TCheckInForm.FilterAppointmentsByStatus(Status: string);
+function TCheckInForm.FilterAppointmentsByStatus(const Status: string): Integer;
 begin
   ClientDataSet.Filter := Format('Status = ''%s''', [Status]);
   ClientDataSet.Filtered := True;
   ClientDataSet.First;
+  Result := ClientDataSet.RecordCount;
 end;
 
 procedure TCheckInForm.LoadAppointments(Appointments: TObjectList<TAppointment>);
@@ -263,60 +415,6 @@ end;
 procedure TCheckInForm.DateTimePickerChange(Sender: TObject);
 begin
   LoadAppointmentsForSelectedDate;
-end;
-
-procedure TCheckInForm.DBGridEhPenddingDblClick(Sender: TObject);
-var
-  AppointmentID: Integer;
-  Appointment: TAppointment;
-  NewStatus: string;
-  Success: Boolean;
-begin
-  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
-  if AppointmentID = 0 then
-    Exit;
-  Appointment := nil;
-  Appointment := TAppointmentsDataAccess.GetAppointment(AppointmentID);
-  if Appointment.Status <> Pending then
-  begin
-    ShowMessage('Error: Sttus of this appointment is changed before');
-    LoadAppointmentsForSelectedDate;
-    Appointment.Free;
-    exit;
-  end;
-
-  NewStatus := 'Confirming';
-  try
-    // Show kiosk selection form
-    with StartVerificationForm do
-    begin
-      LabelPatientName.Caption := Appointment.Patient.GetFullName;
-      PopulateKioskList(WebSocketClient.KioskList);
-      ShowModal;
-      if Confirmed and (SelectedKiosk <> '') then
-      begin
-        Success := WebSocketClient.StartVerification(
-          Appointment.AppointmentID,
-          WebSocketClient.AppID,
-          SelectedKiosk,
-          Appointment.Patient
-        );
-        if Success then
-        begin
-          if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
-          begin
-            ClientDataSet.Edit;
-            ClientDataSet.FieldByName('Status').AsString := NewStatus;
-            ClientDataSet.Post;
-          end;
-        end
-        else
-          ShowMessage('Error updating appointment status in database.');
-      end;
-    end;
-  finally
-    Appointment.Free;
-  end;
 end;
 
 procedure TCheckInForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -374,8 +472,9 @@ end;
 procedure TCheckInForm.FormCreate(Sender: TObject);
 begin
   SetupClientDataSet;
+  InitializeTabs;
 
-  WebSocketClient := DataModuleMain.GetWebSocketClient;
+  FWebSocketClient := DataModuleMain.GetWebSocketClient;
   WebSocketClient.OnKioskListChanged := HandleKioskListChanged;
   WebSocketClient.OnVerificationDone := HandleVerificationResult;
   WebSocketClient.OnRecievedMessage := HandleRecievedMessage;
