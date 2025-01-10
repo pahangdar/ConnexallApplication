@@ -3,20 +3,25 @@ unit WebSocketClientUnit;
 interface
 
 uses
-  sgcWebSocket, System.Classes, System.SysUtils, system.JSON, VCL.Dialogs, sgcWebSocket_Classes, System.Generics.Collections,
+  System.Classes, System.SysUtils, system.JSON, VCL.Dialogs, System.Generics.Collections,
+  sgcWebSocket, sgcWebSocket_Classes,
   PatientUnit;
 
 type
+
   TKioskInfo = record
     AppID: string;
     Status: string;
   end;
+
   TVerificationResultDetail = record
     Question: string;
     IsCorrect: Boolean;
   end;
-  TOnVerificationDoneEvent = procedure(Sender: TObject; AppointmentID: Integer;
-    Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean) of object;
+
+  TOnVerificationDoneEvent = procedure(Sender: TObject;
+    AppointmentID: Integer;Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean) of object;
+
   TRecievedMessageEvent = procedure(Sender: TObject; const Message: string) of object;
 
   TWebSocketClient = class
