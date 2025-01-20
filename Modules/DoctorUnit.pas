@@ -12,6 +12,7 @@ type
     FPhoneNumber: string;
     FEmail: string;
   public
+    constructor Create; overload;
     constructor Create(
       ADoctorID: Integer;
       AFirstName: string;
@@ -19,7 +20,7 @@ type
       ASpecialization: string;
       APhoneNumber: string;
       AEmail: string
-    );
+    ); overload;
 
     function GetFullName: string;
 
@@ -32,6 +33,11 @@ type
   end;
 
 implementation
+
+constructor TDoctor.Create;
+begin
+  inherited Create;
+end;
 
 constructor TDoctor.Create(ADoctorID: Integer; AFirstName: string; ALastName: string; ASpecialization: string; APhoneNumber: string; AEmail: string);
 begin

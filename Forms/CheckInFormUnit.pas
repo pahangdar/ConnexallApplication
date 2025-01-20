@@ -47,6 +47,7 @@ type
     function  FilterAppointmentsByStatus(const Status: string): Integer;
     procedure SetFormSize;
     procedure InitializeTabs;
+    function UpdateAppointmentSelectedStatus(OldStatus, NewStatus: TAppointmentStatus): Boolean;
     procedure IncrementRecordCount(Status: TAppointmentStatus);
     procedure DecrementRecordCount(Status: TAppointmentStatus);
     procedure miPendingCancelClick(Sender: TObject);
@@ -75,8 +76,35 @@ implementation
 
 {$R *.dfm}
 
-uses PatientUnit, DoctorUnit, MainFormUnit, AppointmentsDataAccessUnit,
-      StartVerificationFormUnit, DataModuleUnit;
+uses PatientUnit, DoctorUnit, MainFormUnit,
+      StartVerificationFormUnit, DataModuleUnit, AppointmentsAPIUnit;
+
+function TCheckInForm.UpdateAppointmentSelectedStatus(OldStatus, NewStatus: TAppointmentStatus): Boolean;
+var
+  AppointmentID: Integer;
+  NewStatusStr: string;
+begin
+  Result := false;
+  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
+  if AppointmentID = 0 then
+    Exit;
+
+  if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
+  begin
+    NewStatusStr := AppointmentStatusToString(NewStatus);
+    Result := TAppointmentsAPI.UpdateAppointmentStatus(AppointmentID, NewStatusStr);
+    if Result then
+    begin
+      ClientDataSet.Edit;
+      ClientDataSet.FieldByName('Status').AsString := NewStatusStr;
+      ClientDataSet.Post;
+      DecrementRecordCount(OldStatus);
+      IncrementRecordCount(NewStatus);
+    end
+    else
+      ShowMessage(Format('Failed to update status for Appointment %d', [AppointmentID]));
+  end;
+end;
 
 procedure TCheckInForm.IncrementRecordCount(Status: TAppointmentStatus);
 begin
@@ -115,7 +143,7 @@ begin
   for Status := Low(TAppointmentStatus) to High(TAppointmentStatus) do
     CountByStatus[Status] := 0;
 
-  Appointments := TAppointmentsDataAccess.GetAppointmentsByDate(DateTimePicker.Date);
+  Appointments := TAppointmentsAPI.GetAppointmentsByDate(DateTimePicker.Date);
   try
     for Appointment in Appointments do
       Inc(CountByStatus[Appointment.Status]);
@@ -133,82 +161,29 @@ begin
 end;
 
 procedure TCheckInForm.miConfirmedCompleteClick(Sender: TObject);
-var
-  AppointmentID: Integer;
 begin
-  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
-  if AppointmentID = 0 then
-    Exit;
-
-  if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
-  begin
-    ClientDataSet.Edit;
-    ClientDataSet.FieldByName('Status').AsString := 'Completed';
-    ClientDataSet.Post;
-    DecrementRecordCount(Confirmed);
-    IncrementRecordCount(Completed);
-  end;
+  UpdateAppointmentSelectedStatus(Confirmed, Completed);
 end;
 
 procedure TCheckInForm.miNotConfirmedConfirmedClick(Sender: TObject);
-var
-  AppointmentID: Integer;
 begin
-  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
-  if AppointmentID = 0 then
-    Exit;
-
-  if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
-  begin
-    ClientDataSet.Edit;
-    ClientDataSet.FieldByName('Status').AsString := 'Confirmed';
-    ClientDataSet.Post;
-    DecrementRecordCount(NotConfirmed);
-    IncrementRecordCount(Confirmed);
-  end;
+  UpdateAppointmentSelectedStatus(NotConfirmed, Confirmed);
 end;
 
 procedure TCheckInForm.miNotConfirmedPendingClick(Sender: TObject);
-var
-  AppointmentID: Integer;
 begin
-  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
-  if AppointmentID = 0 then
-    Exit;
-
-  if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
-  begin
-    ClientDataSet.Edit;
-    ClientDataSet.FieldByName('Status').AsString := 'Pending';
-    ClientDataSet.Post;
-    DecrementRecordCount(NotConfirmed);
-    IncrementRecordCount(Pending);
-  end;
+  UpdateAppointmentSelectedStatus(NotConfirmed, Pending);
 end;
 
 procedure TCheckInForm.miPendingCancelClick(Sender: TObject);
-var
-  AppointmentID: Integer;
 begin
-  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
-  if AppointmentID = 0 then
-    Exit;
-
-  if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
-  begin
-    ClientDataSet.Edit;
-    ClientDataSet.FieldByName('Status').AsString := 'Cancelled';
-    ClientDataSet.Post;
-    DecrementRecordCount(Pending);
-    IncrementRecordCount(Cancelled);
-  end;
+  UpdateAppointmentSelectedStatus(Pending, Cancelled);
 end;
 
 procedure TCheckInForm.miPendingStartVerificationClick(Sender: TObject);
 var
   AppointmentID: Integer;
   Appointment: TAppointment;
-  NewStatus: string;
   Success: Boolean;
 begin
   if WebSocketClient.AppID = '' then
@@ -221,8 +196,9 @@ begin
   if AppointmentID = 0 then
     Exit;
 
-  Appointment := nil;
-  Appointment := TAppointmentsDataAccess.GetAppointment(AppointmentID);
+//  Appointment := nil;
+  Appointment := TAppointment.Create;
+  Appointment := TAppointmentsAPI.GetAppointmentByID(AppointmentID);
   if Appointment.Status <> Pending then
   begin
     ShowMessage('Error: Sttus of this appointment is changed before');
@@ -231,7 +207,6 @@ begin
     exit;
   end;
 
-  NewStatus := 'Confirming';
   try
     // Show kiosk selection form
     with StartVerificationForm do
@@ -250,17 +225,10 @@ begin
         if Success then
         begin
           if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
-          begin
-            ClientDataSet.Edit;
-            ClientDataSet.FieldByName('Status').AsString := NewStatus;
-            ClientDataSet.Post;
-          end;
-
-          DecrementRecordCount(Pending);
-          IncrementRecordCount(Confirming);
+            UpdateAppointmentSelectedStatus(Pending, Confirming);
         end
         else
-          ShowMessage('Error updating appointment status in database.');
+          ShowMessage('Error: Verification has not started on the Kiosk');
       end;
     end;
   finally
@@ -474,13 +442,16 @@ begin
   SetupClientDataSet;
   InitializeTabs;
 
-  FWebSocketClient := DataModuleMain.GetWebSocketClient;
+  FWebSocketClient := TWebSocketClient.Instance;
+
+  if not TWebSocketClient.Instance.IsConnected then
+    TWebSocketClient.Instance.Connect;
+
   WebSocketClient.OnKioskListChanged := HandleKioskListChanged;
   WebSocketClient.OnVerificationDone := HandleVerificationResult;
   WebSocketClient.OnRecievedMessage := HandleRecievedMessage;
   WebSocketClient.OnAppIDAssigned := HandleAppIDAssigned;
 
-  WebSocketClient.Connect;
   if WebSocketClient.AppID <> '' then
     HandleKioskListChanged(nil);
   CheckConnectionStatus;

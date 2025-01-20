@@ -119,12 +119,6 @@
         <DCCReference Include="Modules\PatientUnit.pas"/>
         <DCCReference Include="Modules\DoctorUnit.pas"/>
         <DCCReference Include="Modules\AppointmentUnit.pas"/>
-        <DCCReference Include="DataAccess\AppointmentsDataAccessUnit.pas"/>
-        <DCCReference Include="DataAccess\DataModuleUnit.pas">
-            <Form>DataModuleMain</Form>
-            <FormType>dfm</FormType>
-            <DesignClass>TDataModule</DesignClass>
-        </DCCReference>
         <DCCReference Include="Utils\AppointmentsUtils.pas"/>
         <DCCReference Include="WebSocket\WebSocketClientUnit.pas"/>
         <DCCReference Include="Forms\StartVerificationFormUnit.pas">
@@ -132,6 +126,7 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="Modules\AppointmentTabUnit.pas"/>
+        <DCCReference Include="DataAccess\AppointmentsAPIUnit.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

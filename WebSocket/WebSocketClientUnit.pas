@@ -5,7 +5,7 @@ interface
 uses
   System.Classes, System.SysUtils, system.JSON, VCL.Dialogs, System.Generics.Collections,
   sgcWebSocket, sgcWebSocket_Classes,
-  PatientUnit;
+  PatientUnit, AppointmentsAPIUnit;
 
 type
 
@@ -20,7 +20,7 @@ type
   end;
 
   TOnVerificationDoneEvent = procedure(Sender: TObject;
-    AppointmentID: Integer;Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean) of object;
+    AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean) of object;
 
   TRecievedMessageEvent = procedure(Sender: TObject; const Message: string) of object;
 
@@ -36,6 +36,9 @@ type
     FOnDisconnect: TNotifyEvent;
     FOnError: TNotifyEvent;
 
+    class var FInstance: TWebSocketClient;
+    class function GetInstance: TWebSocketClient; static;
+
     procedure HandleMessage(Connection: TsgcWSConnection; const Text: string);
     procedure UpdateKioskList(JSONArray: TJSONArray);
     procedure HandleConnect(Connection: TsgcWSConnection);
@@ -44,12 +47,16 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+
     procedure Connect;
+    procedure Disconnect;
+    function IsConnected: Boolean;
     procedure RequestAppID;
     procedure GetActiveKioskApps;
     function StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient): Boolean;
     function UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
 
+    class property Instance: TWebSocketClient read GetInstance;
     property AppID: string read FAppID;
     property WebSocket: TsgcWebSocketClient read FWebSocket;
     property KioskList: TList<TKioskInfo> read FKioskList;
@@ -65,19 +72,17 @@ implementation
 
 { TWebSocketClient }
 
-uses
-  AppointmentsDataAccessUnit;
-
 constructor TWebSocketClient.Create;
 begin
+  inherited Create;
+
   FWebSocket := TsgcWebSocketClient.Create(nil);
   FWebSocket.Host := 'localhost';
   FWebSocket.Port := 8080;
   FWebSocket.Options.Parameters := '/';
-
-  FWebSocket.TLS := false;
-  FWebSocket.Specifications.RFC6455 := true;
-  FWebSocket.Extensions.PerMessage_Deflate.Enabled := false;
+  FWebSocket.TLS := False;
+  FWebSocket.Specifications.RFC6455 := True;
+  FWebSocket.Extensions.PerMessage_Deflate.Enabled := False;
 
   FWebSocket.OnMessage := HandleMessage;
   FWebSocket.OnConnect := HandleConnect;
@@ -94,24 +99,38 @@ begin
   inherited;
 end;
 
+class function TWebSocketClient.GetInstance: TWebSocketClient;
+begin
+  if not Assigned(FInstance) then
+    FInstance := TWebSocketClient.Create;
+  Result := FInstance;
+end;
+
 procedure TWebSocketClient.Connect;
 begin
   FWebSocket.Active := True;
-//  if FWebSocket.Active then
-//    ShowMessage('Connected to WebSocket server.');
+end;
+
+procedure TWebSocketClient.Disconnect;
+begin
+  FWebSocket.Active := False;
+end;
+
+function TWebSocketClient.IsConnected: Boolean;
+begin
+  Result := FWebSocket.Active;
 end;
 
 procedure TWebSocketClient.HandleConnect(Connection: TsgcWSConnection);
 begin
-//  ShowMessage('Connected to WebSocket Server.');
   RequestAppID;
 end;
 
 procedure TWebSocketClient.HandleDisconnect(Connection: TsgcWSConnection; Code: Integer);
 begin
-  //ShowMessage('WebSocket disconnected. Code: ' + Code.ToString);
   FKioskList.Clear;
   FAppID := '';
+
   if Assigned(FOnAppIDAssigned) then
     FOnAppIDAssigned(Self);
 
@@ -122,17 +141,16 @@ end;
 procedure TWebSocketClient.HandleError(Connection: TsgcWSConnection; const Error: string);
 begin
   ShowMessage('WebSocket error: ' + Error);
+
   if Assigned(FOnError) then
     FOnError(Self);
 end;
 
 function TWebSocketClient.UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
 begin
-  Result := TAppointmentsDataAccess.UpdateAppointmentStatus(AppointmentID, NewStatus);
-//  if Result then
-//    ShowMessage(Format('Appointment %d status updated to %s', [AppointmentID, NewStatus]))
-//  else
-//    ShowMessage(Format('Failed to update status for Appointment %d', [AppointmentID]));
+  Result := TAppointmentsAPI.UpdateAppointmentStatus(AppointmentID, NewStatus);
+  if not Result then
+    ShowMessage(Format('Failed to update status for Appointment %d', [AppointmentID]));
 end;
 
 procedure TWebSocketClient.RequestAppID;
@@ -149,15 +167,10 @@ end;
 
 function TWebSocketClient.StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient): Boolean;
 var
-  VerificationJSON: TJSONObject;
-  PatientJSON: TJSONObject;
-  NewStatus: string;
+  VerificationJSON, PatientJSON: TJSONObject;
 begin
-  Result := false;
   if not FWebSocket.Active then
-  begin
-    raise Exception.Create('WebSocket connection is not active. Cannot send verification request.');
-  end;
+    raise Exception.Create('WebSocket is not connected.');
 
   VerificationJSON := TJSONObject.Create;
   try
@@ -172,17 +185,15 @@ begin
       PatientJSON.AddPair('lastName', PatientData.LastName);
       PatientJSON.AddPair('phoneNumber', PatientData.PhoneNumber);
       PatientJSON.AddPair('address', PatientData.Address);
-      PatientJSON.AddPair('dateOfBirth', DateToStr(PatientData.DateOfBirth)); // Format the date as a string
+      PatientJSON.AddPair('dateOfBirth', DateToStr(PatientData.DateOfBirth));
 
       VerificationJSON.AddPair('patientData', PatientJSON.Clone as TJSONObject);
     finally
       PatientJSON.Free;
     end;
 
-    // Send the JSON message
     FWebSocket.WriteData(VerificationJSON.ToJSON);
-    NewStatus := 'Confirming';
-    Result := UpdateAppointmentStatus(AppointmentID, NewStatus);
+    Result := True;
   finally
     VerificationJSON.Free;
   end;
@@ -259,9 +270,9 @@ end;
 
 procedure TWebSocketClient.UpdateKioskList(JSONArray: TJSONArray);
 var
+  I: Integer;
   KioskJSON: TJSONObject;
   KioskInfo: TKioskInfo;
-  I: Integer;
 begin
   FKioskList.Clear;
   for I := 0 to JSONArray.Count - 1 do
@@ -272,6 +283,12 @@ begin
     FKioskList.Add(KioskInfo);
   end;
 end;
+
+initialization
+  TWebSocketClient.FInstance := nil;
+
+finalization
+  FreeAndNil(TWebSocketClient.FInstance);
 
 end.
 

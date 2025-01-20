@@ -17,6 +17,7 @@ type
     FStatus: TAppointmentStatus;
 
   public
+    constructor Create; overload;
     constructor Create(
       AAppointmentID: Integer;
       ADate: TDateTime;
@@ -24,7 +25,8 @@ type
       APatient: TPatient;
       ADoctor: TDoctor;
       AStatus: TAppointmentStatus
-    );
+    ); overload;
+    destructor Destroy; override;
 
     property AppointmentID: Integer read FAppointmentID write FAppointmentID;
     property Date: TDateTime read FDate write FDate;
@@ -37,6 +39,11 @@ type
 
 implementation
 
+constructor TAppointment.Create;
+begin
+  inherited Create;
+end;
+
 constructor TAppointment.Create(AAppointmentID: Integer; ADate: TDateTime; ATime: TDateTime; APatient: TPatient; ADoctor: TDoctor; AStatus: TAppointmentStatus);
 begin
   FAppointmentID := AAppointmentID;
@@ -45,6 +52,13 @@ begin
   FPatient := APatient;
   FDoctor := ADoctor;
   FStatus := AStatus
+end;
+
+destructor TAppointment.Destroy;
+begin
+  FPatient.Free;
+  FDoctor.Free;
+  inherited;
 end;
 
 end.

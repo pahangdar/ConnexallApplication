@@ -9,12 +9,11 @@ uses
   PatientUnit in 'Modules\PatientUnit.pas',
   DoctorUnit in 'Modules\DoctorUnit.pas',
   AppointmentUnit in 'Modules\AppointmentUnit.pas',
-  AppointmentsDataAccessUnit in 'DataAccess\AppointmentsDataAccessUnit.pas',
-  DataModuleUnit in 'DataAccess\DataModuleUnit.pas' {DataModuleMain: TDataModule},
   AppointmentsUtils in 'Utils\AppointmentsUtils.pas',
   WebSocketClientUnit in 'WebSocket\WebSocketClientUnit.pas',
   StartVerificationFormUnit in 'Forms\StartVerificationFormUnit.pas' {StartVerificationForm},
-  AppointmentTabUnit in 'Modules\AppointmentTabUnit.pas';
+  AppointmentTabUnit in 'Modules\AppointmentTabUnit.pas',
+  AppointmentsAPIUnit in 'DataAccess\AppointmentsAPIUnit.pas';
 
 {$R *.res}
 
@@ -23,7 +22,7 @@ begin
   Application.MainFormOnTaskbar := True;
   Application.Title := 'Connexall Application';
   TStyleManager.TrySetStyle('Lavender Classico');
-  Application.CreateForm(TDataModuleMain, DataModuleMain);
+  TWebSocketClient.Instance.Connect;
   Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TStartVerificationForm, StartVerificationForm);
   //  Application.CreateForm(TCheckInForm, CheckInForm);

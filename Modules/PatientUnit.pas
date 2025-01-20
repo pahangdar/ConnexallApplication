@@ -13,6 +13,7 @@ type
     FDateOfBirth: TDateTime;
     FEmail: string;
   public
+    constructor Create; overload;
     constructor Create(
       APatientID: Integer;
       AFirstName: string;
@@ -21,7 +22,7 @@ type
       AAddress: string;
       ADateOfBirth: TDateTime;
       AEmail: string
-    );
+    ); overload;
 
     function GetFullName: string;
 
@@ -35,6 +36,11 @@ type
   end;
 
 implementation
+
+constructor TPatient.Create;
+begin
+  inherited Create;
+end;
 
 constructor TPatient.Create(APatientID: Integer; AFirstName: string; ALastName: string; APhoneNumber: string; AAddress: string; ADateOfBirth: TDateTime; AEmail: string);
 begin
