@@ -5,17 +5,20 @@ interface
 uses
   System.SysUtils, System.Net.HttpClient, System.Net.URLClient, System.JSON,
   System.Generics.Collections, System.DateUtils, System.Classes, Vcl.Dialogs,
-  AppointmentUnit, PatientUnit, DoctorUnit, AppointmentsUtils;
+  AppointmentUnit, PatientUnit, DoctorUnit, AppointmentsUtils, System.Net.Mime,
+  System.IniFiles;
 
 type
   TAppointmentsAPI = class
   private
     class var FBaseURL: string;
     class var FHttpClient: THTTPClient;
+    class var FAPIKey: string;
     class constructor Create;
     class destructor Destroy;
 
     class function ParseAppointmentFromJSON(const JSONObj: TJSONObject): TAppointment;
+    class procedure Initialize;
   public
     class property BaseURL: string read FBaseURL write FBaseURL;
 
@@ -30,13 +33,26 @@ implementation
 
 class constructor TAppointmentsAPI.Create;
 begin
-  FBaseURL := 'https://localhost:7077';
+  Initialize;
   FHttpClient := THTTPClient.Create;
 end;
 
 class destructor TAppointmentsAPI.Destroy;
 begin
   FHttpClient.Free;
+end;
+
+class procedure TAppointmentsAPI.Initialize;
+var
+  IniFile: TIniFile;
+begin
+  IniFile := TIniFile.Create(ExtractFilePath(ParamStr(0)) + 'config.ini');
+  try
+    FBaseURL := IniFile.ReadString('API', 'BaseURL', '');
+    FAPIKey := IniFile.ReadString('API', 'APIKey', '');
+  finally
+    IniFile.Free;
+  end;
 end;
 
 class function TAppointmentsAPI.ParseAppointmentFromJSON(const JSONObj: TJSONObject): TAppointment;
@@ -79,10 +95,13 @@ var
   JSONArray: TJSONArray;
   JSONValue: TJSONValue;
   Appointment: TAppointment;
+  URL: string;
 begin
   Result := TObjectList<TAppointment>.Create;
   try
-    Response := FHttpClient.Get(FBaseURL + '/api/Appointments/date/' + FormatDateTime('yyyy-mm-dd', ADate));
+    URL := FBaseURL + '/api/Appointments/date/' + FormatDateTime('yyyy-mm-dd', ADate);
+    Response := FHttpClient.Get(URL, nil,
+    [TNameValuePair.Create('X-API-Key', FAPIKey)]);
 
     if Response.StatusCode = 200 then
     begin
@@ -106,8 +125,11 @@ class function TAppointmentsAPI.GetAppointmentByID(AID: Integer): TAppointment;
 var
   Response: IHTTPResponse;
   JSONObj: TJSONObject;
+  URL: string;
 begin
-  Response := FHttpClient.Get(FBaseURL + '/api/Appointments/' + AID.ToString);
+  URL := FBaseURL + '/api/Appointments/' + AID.ToString;
+  Response := FHttpClient.Get(URL, nil,
+    [TNameValuePair.Create('X-API-Key', FAPIKey)]);
 
   if Response.StatusCode = 200 then
   begin
@@ -127,11 +149,16 @@ var
   Response: IHTTPResponse;
   URL: string;
   EmptyStream: TBytesStream;
+  Headers: TNetHeaders;
+  FormData: TMultipartFormData;
 begin
   URL := Format('%s/api/Appointments/status/%d?status=%s', [FBaseURL, AID, AStatus]);
+  FormData := TMultipartFormData.Create;
   EmptyStream := TBytesStream.Create(nil);
   try
-    Response := FHttpClient.Put(URL, EmptyStream);
+    Headers := [TNetHeader.Create('X-API-Key', FAPIKey)];
+//    Response := FHttpClient.Put(URL, EmptyStream, Headers);
+    Response := FHttpClient.Put(URL, FormData, nil, Headers);
     Result := (Response.StatusCode = 200) OR (Response.StatusCode = 204);
     if not Result then
       raise Exception.CreateFmt('Failed to update appointment status: %s', [Response.StatusText]);

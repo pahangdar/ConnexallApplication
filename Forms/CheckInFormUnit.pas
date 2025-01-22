@@ -310,8 +310,6 @@ begin
   else
     ShowMessage('Error updating appointment status in database.');
 
-
-
 //  ShowMessage(Format('Verification Result for Appointment %d: %s', [AppointmentID, Result]) + sLineBreak +
 //    'Details:' + sLineBreak + DetailsStr);
 end;

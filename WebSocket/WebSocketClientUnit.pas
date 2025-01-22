@@ -1,14 +1,12 @@
 unit WebSocketClientUnit;
 
 interface
-
 uses
   System.Classes, System.SysUtils, system.JSON, VCL.Dialogs, System.Generics.Collections,
-  sgcWebSocket, sgcWebSocket_Classes,
+  sgcWebSocket, sgcWebSocket_Classes, System.IniFiles,
   PatientUnit, AppointmentsAPIUnit;
 
 type
-
   TKioskInfo = record
     AppID: string;
     Status: string;
@@ -35,19 +33,17 @@ type
     FOnAppIDAssigned: TNotifyEvent;
     FOnDisconnect: TNotifyEvent;
     FOnError: TNotifyEvent;
-
     class var FInstance: TWebSocketClient;
     class function GetInstance: TWebSocketClient; static;
-
     procedure HandleMessage(Connection: TsgcWSConnection; const Text: string);
     procedure UpdateKioskList(JSONArray: TJSONArray);
     procedure HandleConnect(Connection: TsgcWSConnection);
     procedure HandleDisconnect(Connection: TsgcWSConnection; Code: Integer);
     procedure HandleError(Connection: TsgcWSConnection; const Error: string);
+    procedure Initialize;
   public
     constructor Create;
     destructor Destroy; override;
-
     procedure Connect;
     procedure Disconnect;
     function IsConnected: Boolean;
@@ -55,7 +51,6 @@ type
     procedure GetActiveKioskApps;
     function StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient): Boolean;
     function UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
-
     class property Instance: TWebSocketClient read GetInstance;
     property AppID: string read FAppID;
     property WebSocket: TsgcWebSocketClient read FWebSocket;
@@ -67,28 +62,17 @@ type
     property OnDisconnect: TNotifyEvent read FOnDisconnect write FOnDisconnect;
     property OnError: TNotifyEvent read FOnError write FOnError;
   end;
-
 implementation
-
 { TWebSocketClient }
-
 constructor TWebSocketClient.Create;
 begin
   inherited Create;
-
   FWebSocket := TsgcWebSocketClient.Create(nil);
-  FWebSocket.Host := 'localhost';
-  FWebSocket.Port := 8080;
-  FWebSocket.Options.Parameters := '/';
-  FWebSocket.TLS := False;
-  FWebSocket.Specifications.RFC6455 := True;
-  FWebSocket.Extensions.PerMessage_Deflate.Enabled := False;
-
+  Initialize;
   FWebSocket.OnMessage := HandleMessage;
   FWebSocket.OnConnect := HandleConnect;
   FWebSocket.OnDisconnect := HandleDisconnect;
   FWebSocket.OnError := HandleError;
-
   FKioskList := TList<TKioskInfo>.Create;
 end;
 
@@ -97,6 +81,23 @@ begin
   FWebSocket.Free;
   FKioskList.Free;
   inherited;
+end;
+
+procedure TWebSocketClient.Initialize;
+var
+  IniFile: TIniFile;
+begin
+  IniFile := TIniFile.Create(ExtractFilePath(ParamStr(0)) + 'config.ini');
+  try
+    FWebSocket.Host := IniFile.ReadString('WebSocket', 'Host', '');
+    FWebSocket.Port := IniFile.ReadInteger('WebSocket', 'Port', 8080);
+    FWebSocket.Options.Parameters := IniFile.ReadString('WebSocket', 'Parameters', '/');
+    FWebSocket.TLS := False;
+    FWebSocket.Specifications.RFC6455 := True;
+    FWebSocket.Extensions.PerMessage_Deflate.Enabled := False;
+  finally
+    IniFile.Free;
+  end;
 end;
 
 class function TWebSocketClient.GetInstance: TWebSocketClient;
@@ -130,10 +131,8 @@ procedure TWebSocketClient.HandleDisconnect(Connection: TsgcWSConnection; Code: 
 begin
   FKioskList.Clear;
   FAppID := '';
-
   if Assigned(FOnAppIDAssigned) then
     FOnAppIDAssigned(Self);
-
   if Assigned(FOnDisconnect) then
     FOnDisconnect(Self);
 end;
@@ -141,7 +140,6 @@ end;
 procedure TWebSocketClient.HandleError(Connection: TsgcWSConnection; const Error: string);
 begin
   ShowMessage('WebSocket error: ' + Error);
-
   if Assigned(FOnError) then
     FOnError(Self);
 end;
@@ -171,14 +169,12 @@ var
 begin
   if not FWebSocket.Active then
     raise Exception.Create('WebSocket is not connected.');
-
   VerificationJSON := TJSONObject.Create;
   try
     VerificationJSON.AddPair('type', 'start_verification');
     VerificationJSON.AddPair('appointmentId', TJSONNumber.Create(AppointmentID));
     VerificationJSON.AddPair('requesterAppID', RequesterAppID);
     VerificationJSON.AddPair('targetAppID', TargetAppID);
-
     PatientJSON := TJSONObject.Create;
     try
       PatientJSON.AddPair('firstName', PatientData.FirstName);
@@ -186,12 +182,10 @@ begin
       PatientJSON.AddPair('phoneNumber', PatientData.PhoneNumber);
       PatientJSON.AddPair('address', PatientData.Address);
       PatientJSON.AddPair('dateOfBirth', DateToStr(PatientData.DateOfBirth));
-
       VerificationJSON.AddPair('patientData', PatientJSON.Clone as TJSONObject);
     finally
       PatientJSON.Free;
     end;
-
     FWebSocket.WriteData(VerificationJSON.ToJSON);
     Result := True;
   finally
