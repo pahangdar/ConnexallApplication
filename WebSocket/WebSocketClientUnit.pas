@@ -27,6 +27,7 @@ type
     FWebSocket: TsgcWebSocketClient;
     FAppID: string;
     FKioskList: TList<TKioskInfo>;
+    FWorkingDate: TDateTime;
     FOnKioskListChanged: TNotifyEvent;
     FOnVerificationDone: TOnVerificationDoneEvent;
     FOnRecievedMessage: TRecievedMessageEvent;
@@ -35,12 +36,14 @@ type
     FOnError: TNotifyEvent;
     class var FInstance: TWebSocketClient;
     class function GetInstance: TWebSocketClient; static;
+    procedure SetWorkingDate(const Value: TDateTime);
     procedure HandleMessage(Connection: TsgcWSConnection; const Text: string);
     procedure UpdateKioskList(JSONArray: TJSONArray);
     procedure HandleConnect(Connection: TsgcWSConnection);
     procedure HandleDisconnect(Connection: TsgcWSConnection; Code: Integer);
     procedure HandleError(Connection: TsgcWSConnection; const Error: string);
     procedure Initialize;
+    procedure UpdateWorkingDate(AWorkingDate: TDateTime = 0);
   public
     constructor Create;
     destructor Destroy; override;
@@ -51,10 +54,12 @@ type
     procedure GetActiveKioskApps;
     function StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient): Boolean;
     function UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
+    procedure NotifyTableChange(ATableName: string);
     class property Instance: TWebSocketClient read GetInstance;
     property AppID: string read FAppID;
     property WebSocket: TsgcWebSocketClient read FWebSocket;
     property KioskList: TList<TKioskInfo> read FKioskList;
+    property WorkingDate: TDateTime read FWorkingDate write SetWorkingDate;
     property OnKioskListChanged: TNotifyEvent read FOnKioskListChanged write FOnKioskListChanged;
     property OnVerificationDone: TOnVerificationDoneEvent read FOnVerificationDone write FOnVerificationDone;
     property OnRecievedMessage: TRecievedMessageEvent read FOnRecievedMessage write FOnRecievedMessage;
@@ -62,8 +67,11 @@ type
     property OnDisconnect: TNotifyEvent read FOnDisconnect write FOnDisconnect;
     property OnError: TNotifyEvent read FOnError write FOnError;
   end;
+
 implementation
+
 { TWebSocketClient }
+
 constructor TWebSocketClient.Create;
 begin
   inherited Create;
@@ -74,6 +82,7 @@ begin
   FWebSocket.OnDisconnect := HandleDisconnect;
   FWebSocket.OnError := HandleError;
   FKioskList := TList<TKioskInfo>.Create;
+  FWorkingDate := Date;
 end;
 
 destructor TWebSocketClient.Destroy;
@@ -149,6 +158,59 @@ begin
   Result := TAppointmentsAPI.UpdateAppointmentStatus(AppointmentID, NewStatus);
   if not Result then
     ShowMessage(Format('Failed to update status for Appointment %d', [AppointmentID]));
+end;
+
+procedure TWebSocketClient.SetWorkingDate(const Value: TDateTime);
+begin
+  if FWorkingDate <> Value then
+  begin
+    FWorkingDate := Value;
+    UpdateWorkingDate(Value);
+  end;
+end;
+
+procedure TWebSocketClient.UpdateWorkingDate(AWorkingDate: TDateTime = 0);
+var
+  MessageJSON: TJSONObject;
+  WorkingDateValue: string;
+begin
+  if not FWebSocket.Active then
+    raise Exception.Create('WebSocket is not connected.');
+
+  MessageJSON := TJSONObject.Create;
+  try
+     if AWorkingDate = 0 then
+      WorkingDateValue := 'null'
+    else
+      WorkingDateValue := DateToStr(AWorkingDate);
+    MessageJSON.AddPair('type', 'update_working_date');
+    MessageJSON.AddPair('workingDate', WorkingDateValue);
+    FWebSocket.WriteData(MessageJSON.ToJSON);
+  finally
+    MessageJSON.Free;
+  end;
+end;
+
+procedure TWebSocketClient.NotifyTableChange(ATableName: string);
+var
+  MessageJSON: TJSONObject;
+begin
+  if not FWebSocket.Active then
+    raise Exception.Create('WebSocket is not connected.');
+
+  if(ATableName = '') then
+    exit;
+
+  MessageJSON := TJSONObject.Create;
+  try
+    MessageJSON.AddPair('type', 'notify_table_change');
+    MessageJSON.AddPair('workingDate', DateToStr(FWorkingDate));
+    MessageJSON.AddPair('table', ATableName);
+    MessageJSON.AddPair('senderAppID', FAppID);
+    FWebSocket.WriteData(MessageJSON.ToJSON);
+  finally
+    MessageJSON.Free;
+  end;
 end;
 
 procedure TWebSocketClient.RequestAppID;

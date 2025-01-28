@@ -142,6 +142,9 @@ object CheckInForm: TCheckInForm
       Caption = 'Start Verification'
       OnClick = miPendingStartVerificationClick
     end
+    object N1: TMenuItem
+      Caption = '-'
+    end
     object miPendingCancel: TMenuItem
       Caption = 'Cancel'
       OnClick = miPendingCancelClick

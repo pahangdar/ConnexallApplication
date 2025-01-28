@@ -32,6 +32,7 @@ type
     miNotConfirmedConfirmed: TMenuItem;
     miConfirmedComplete: TMenuItem;
     miNotConfirmedPending: TMenuItem;
+    N1: TMenuItem;
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormShow(Sender: TObject);
     procedure DateTimePickerChange(Sender: TObject);
@@ -100,6 +101,8 @@ begin
       ClientDataSet.Post;
       DecrementRecordCount(OldStatus);
       IncrementRecordCount(NewStatus);
+
+      WebSocketClient.NotifyTableChange('appointments');
     end
     else
       ShowMessage(Format('Failed to update status for Appointment %d', [AppointmentID]));
@@ -155,9 +158,12 @@ begin
     LoadAppointments(Appointments);
     self.LabelTotal.Caption := Format('Total Appointments: %d', [Appointments.Count]);
     self.ClientDataSet.First;
+
   finally
     Appointments.Free;
   end;
+
+  WebSocketClient.WorkingDate := DateTimePicker.DateTime;
 end;
 
 procedure TCheckInForm.miConfirmedCompleteClick(Sender: TObject);
@@ -196,7 +202,6 @@ begin
   if AppointmentID = 0 then
     Exit;
 
-//  Appointment := nil;
   Appointment := TAppointment.Create;
   Appointment := TAppointmentsAPI.GetAppointmentByID(AppointmentID);
   if Appointment.Status <> Pending then
@@ -297,6 +302,8 @@ begin
       ClientDataSet.Edit;
       ClientDataSet.FieldByName('Status').AsString := Result;
       ClientDataSet.Post;
+
+      WebSocketClient.NotifyTableChange('appointments');
     end;
     ClientDataSet.Filtered := true;
     if Result = 'Confirmed' then
@@ -466,7 +473,7 @@ end;
 procedure TCheckInForm.FormShow(Sender: TObject);
 begin
   MainForm.ToolButtonCheckIn.Enabled := false;
-  self.DateTimePicker.Date := Date;
+  self.DateTimePicker.Date := WebSocketClient.WorkingDate;
 
   LoadAppointmentsForSelectedDate;
 

@@ -12,6 +12,7 @@ object MainForm: TMainForm
   Font.Style = []
   FormStyle = fsMDIForm
   Menu = MainMenu
+  Position = poDesktopCenter
   WindowState = wsMaximized
   OnClose = FormClose
   OnCreate = FormCreate
