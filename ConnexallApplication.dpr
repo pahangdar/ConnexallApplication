@@ -13,7 +13,8 @@ uses
   WebSocketClientUnit in 'WebSocket\WebSocketClientUnit.pas',
   StartVerificationFormUnit in 'Forms\StartVerificationFormUnit.pas' {StartVerificationForm},
   AppointmentTabUnit in 'Modules\AppointmentTabUnit.pas',
-  AppointmentsAPIUnit in 'DataAccess\AppointmentsAPIUnit.pas';
+  AppointmentsAPIUnit in 'DataAccess\AppointmentsAPIUnit.pas',
+  EventManagerUnit in 'Utils\EventManagerUnit.pas';
 
 {$R *.res}
 

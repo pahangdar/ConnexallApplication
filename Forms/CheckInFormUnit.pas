@@ -9,8 +9,8 @@ uses
   sgcTCP_Classes, sgcWebSocket_Classes, sgcWebSocket_Classes_Indy,
   sgcWebSocket_Client, sgcWebSocket, System.Math, DBGridEhGrouping, ToolCtrlsEh,
   DBGridEhToolCtrls, DynVarsEh, EhLibVCL, GridsEh, DBAxisGridsEh, DBGridEh,
-  Data.DB, Datasnap.DBClient,
-  AppointmentsUtils, WebSocketClientUnit, AppointmentTabUnit, Vcl.Menus;
+  Data.DB, Datasnap.DBClient, Vcl.Menus,
+  AppointmentsUtils, WebSocketClientUnit, AppointmentTabUnit, EventManagerUnit;
 
 type
   TCheckInForm = class(TForm)
@@ -64,6 +64,7 @@ type
     procedure HandleVerificationResult(Sender: TObject;
        AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean);
     procedure HandleRecievedMessage(Sender: TObject; const Message: string);
+    procedure HandleTableUpdated(Sender: TObject; const TableName: string; WorkingDate: TDateTime);
     procedure HandleAppIDAssigned(Sender: TObject);
   public
     { Public declarations }
@@ -101,11 +102,7 @@ begin
       ClientDataSet.Post;
       DecrementRecordCount(OldStatus);
       IncrementRecordCount(NewStatus);
-
-      WebSocketClient.NotifyTableChange('appointments');
-    end
-    else
-      ShowMessage(Format('Failed to update status for Appointment %d', [AppointmentID]));
+    end;
   end;
 end;
 
@@ -302,8 +299,6 @@ begin
       ClientDataSet.Edit;
       ClientDataSet.FieldByName('Status').AsString := Result;
       ClientDataSet.Post;
-
-      WebSocketClient.NotifyTableChange('appointments');
     end;
     ClientDataSet.Filtered := true;
     if Result = 'Confirmed' then
@@ -313,17 +308,18 @@ begin
 
     DecrementRecordCount(Confirming);
     IncrementRecordCount(ResultStatus);
-  end
-  else
-    ShowMessage('Error updating appointment status in database.');
-
-//  ShowMessage(Format('Verification Result for Appointment %d: %s', [AppointmentID, Result]) + sLineBreak +
-//    'Details:' + sLineBreak + DetailsStr);
+  end;
 end;
 
 procedure TCheckInForm.HandleRecievedMessage(Sender: TObject; const Message: string);
 begin
   Memo1.Lines.Add(Message);
+end;
+
+procedure TCheckInForm.HandleTableUpdated(Sender: TObject; const TableName: string; WorkingDate: TDateTime);
+begin
+  ShowMessage(Format('Table "%s" was updated for date %s.', [TableName, DateToStr(WorkingDate)]));
+  // Implement logic to reload data if the table and date match the working date
 end;
 
 procedure TCheckInForm.HandleAppIDAssigned(Sender: TObject);
@@ -393,9 +389,12 @@ end;
 procedure TCheckInForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   WebSocketClient.OnKioskListChanged := nil;
-  WebSocketClient.OnVerificationDone := nil;
+//  WebSocketClient.OnVerificationDone := nil;
   WebSocketClient.OnRecievedMessage := nil;
   WebSocketClient.OnAppIDAssigned := nil;
+  WebSocketClient.OnTableUpdated := nil;
+
+  TEventManager.Instance.OnVerificationDone := nil;
   Action := caFree;
   CheckInForm := nil;
   MainForm.ToolButtonCheckIn.Enabled := true;
@@ -453,9 +452,12 @@ begin
     TWebSocketClient.Instance.Connect;
 
   WebSocketClient.OnKioskListChanged := HandleKioskListChanged;
-  WebSocketClient.OnVerificationDone := HandleVerificationResult;
+//  WebSocketClient.OnVerificationDone := HandleVerificationResult;
   WebSocketClient.OnRecievedMessage := HandleRecievedMessage;
   WebSocketClient.OnAppIDAssigned := HandleAppIDAssigned;
+  WebSocketClient.OnTableUpdated := HandleTableUpdated;
+
+  TEventManager.Instance.OnVerificationDone := HandleVerificationResult;
 
   if WebSocketClient.AppID <> '' then
     HandleKioskListChanged(nil);

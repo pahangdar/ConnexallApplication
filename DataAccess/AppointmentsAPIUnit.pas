@@ -5,8 +5,8 @@ interface
 uses
   System.SysUtils, System.Net.HttpClient, System.Net.URLClient, System.JSON,
   System.Generics.Collections, System.DateUtils, System.Classes, Vcl.Dialogs,
-  AppointmentUnit, PatientUnit, DoctorUnit, AppointmentsUtils, System.Net.Mime,
-  System.IniFiles;
+  System.IniFiles, System.Net.Mime,
+  AppointmentUnit, PatientUnit, DoctorUnit, AppointmentsUtils, EventManagerUnit;
 
 type
   TAppointmentsAPI = class
@@ -160,7 +160,9 @@ begin
 //    Response := FHttpClient.Put(URL, EmptyStream, Headers);
     Response := FHttpClient.Put(URL, FormData, nil, Headers);
     Result := (Response.StatusCode = 200) OR (Response.StatusCode = 204);
-    if not Result then
+    if Result then
+      TEventManager.Instance.NotifyAppointmentUpdated('appointments')
+    else
       raise Exception.CreateFmt('Failed to update appointment status: %s', [Response.StatusText]);
   finally
     EmptyStream.Free;

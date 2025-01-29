@@ -3,8 +3,8 @@ unit WebSocketClientUnit;
 interface
 uses
   System.Classes, System.SysUtils, system.JSON, VCL.Dialogs, System.Generics.Collections,
-  sgcWebSocket, sgcWebSocket_Classes, System.IniFiles,
-  PatientUnit, AppointmentsAPIUnit;
+  sgcWebSocket, sgcWebSocket_Classes, System.IniFiles, System.DateUtils,
+  PatientUnit;
 
 type
   TKioskInfo = record
@@ -18,9 +18,10 @@ type
   end;
 
   TOnVerificationDoneEvent = procedure(Sender: TObject;
-    AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean) of object;
+    AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>) of object;
 
   TRecievedMessageEvent = procedure(Sender: TObject; const Message: string) of object;
+  TOnTableUpdatedEvent = procedure(Sender: TObject; const TableName: string; WorkingDate: TDateTime) of object;
 
   TWebSocketClient = class
   private
@@ -31,6 +32,7 @@ type
     FOnKioskListChanged: TNotifyEvent;
     FOnVerificationDone: TOnVerificationDoneEvent;
     FOnRecievedMessage: TRecievedMessageEvent;
+    FOnTableUpdated: TOnTableUpdatedEvent;
     FOnAppIDAssigned: TNotifyEvent;
     FOnDisconnect: TNotifyEvent;
     FOnError: TNotifyEvent;
@@ -53,7 +55,6 @@ type
     procedure RequestAppID;
     procedure GetActiveKioskApps;
     function StartVerification(AppointmentID: Integer; RequesterAppID: string; TargetAppID: string; PatientData: TPatient): Boolean;
-    function UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
     procedure NotifyTableChange(ATableName: string);
     class property Instance: TWebSocketClient read GetInstance;
     property AppID: string read FAppID;
@@ -63,6 +64,7 @@ type
     property OnKioskListChanged: TNotifyEvent read FOnKioskListChanged write FOnKioskListChanged;
     property OnVerificationDone: TOnVerificationDoneEvent read FOnVerificationDone write FOnVerificationDone;
     property OnRecievedMessage: TRecievedMessageEvent read FOnRecievedMessage write FOnRecievedMessage;
+    property OnTableUpdated: TOnTableUpdatedEvent read FOnTableUpdated write FOnTableUpdated;
     property OnAppIDAssigned: TNotifyEvent read FOnAppIDAssigned write FOnAppIDAssigned;
     property OnDisconnect: TNotifyEvent read FOnDisconnect write FOnDisconnect;
     property OnError: TNotifyEvent read FOnError write FOnError;
@@ -151,13 +153,6 @@ begin
   ShowMessage('WebSocket error: ' + Error);
   if Assigned(FOnError) then
     FOnError(Self);
-end;
-
-function TWebSocketClient.UpdateAppointmentStatus(AppointmentID: Integer; NewStatus: string): Boolean;
-begin
-  Result := TAppointmentsAPI.UpdateAppointmentStatus(AppointmentID, NewStatus);
-  if not Result then
-    ShowMessage(Format('Failed to update status for Appointment %d', [AppointmentID]));
 end;
 
 procedure TWebSocketClient.SetWorkingDate(const Value: TDateTime);
@@ -265,8 +260,9 @@ var
   ResultDetails: TJSONArray;
   DetailArray: TArray<TVerificationResultDetail>;
   Detail: TVerificationResultDetail;
+  TableName, WorkingDateStr, SenderAppID: string;
+  WorkingDate: TDateTime;
   I: Integer;
-  SuccessStatusUpdate: Boolean;
 begin
   JSON := nil;
   try
@@ -311,13 +307,25 @@ begin
         Detail.IsCorrect := DetailJSON.GetValue<Boolean>('isCorrect');
         DetailArray[I] := Detail;
       end;
-      SuccessStatusUpdate := UpdateAppointmentStatus(AppointmentID, ResultValue);
       if Assigned(FOnVerificationDone) then
-        FOnVerificationDone(Self, AppointmentID, ResultValue, DetailArray, SuccessStatusUpdate);
+        FOnVerificationDone(Self, AppointmentID, ResultValue, DetailArray);
     end
     else if MsgType = 'kiosk_list_changed' then
     begin
       GetActiveKioskApps;
+    end
+    else if MsgType = 'table_updated' then
+    begin
+      TableName := JSON.GetValue<string>('table');
+      WorkingDateStr := JSON.GetValue<string>('workingDate');
+      SenderAppID := JSON.GetValue<string>('senderAppID');
+      if TryStrToDate(WorkingDateStr, WorkingDate) then
+      begin
+        if (SenderAppID <> FAppID) and Assigned(FOnTableUpdated) then
+          FOnTableUpdated(Self, TableName, WorkingDate);
+      end
+      else
+        ShowMessage('Invalid date format: ' + WorkingDateStr);
     end;
   finally
     JSON.Free;
