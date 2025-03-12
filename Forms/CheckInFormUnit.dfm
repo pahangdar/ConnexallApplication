@@ -78,30 +78,19 @@ object CheckInForm: TCheckInForm
     Left = 0
     Top = 41
     Width = 582
-    Height = 395
+    Height = 608
     Align = alClient
     TabOrder = 1
   end
-  object Memo1: TMemo
-    Left = 0
-    Top = 479
-    Width = 582
-    Height = 213
-    Align = alBottom
-    Lines.Strings = (
-      'Memo1')
-    TabOrder = 2
-    Visible = False
-  end
   object FlowPanelKiosksStatus: TFlowPanel
     Left = 0
-    Top = 436
+    Top = 649
     Width = 582
     Height = 43
     Align = alBottom
     AutoSize = True
     Constraints.MinHeight = 41
-    TabOrder = 3
+    TabOrder = 2
     object PanelConnectionStatus: TPanel
       Left = 1
       Top = 1

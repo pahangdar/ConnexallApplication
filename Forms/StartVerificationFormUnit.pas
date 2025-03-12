@@ -49,9 +49,14 @@ if ComboBoxKioskList.ItemIndex = -1 then
     Exit;
   end;
 
-  FSelectedKiosk := ComboBoxKioskList.Items[ComboBoxKioskList.ItemIndex];
-  FConfirmed := True;
-  Close;
+  try
+    FSelectedKiosk := ComboBoxKioskList.Items[ComboBoxKioskList.ItemIndex];
+    FConfirmed := True;
+    Close;
+  except
+    on E: Exception do
+      ShowMessage('Error starting verification: ' + E.Message);
+  end;
 end;
 
 procedure TStartVerificationForm.PopulateKioskList(KioskList: TList<TKioskInfo>);
@@ -59,14 +64,27 @@ var
   Kiosk: TKioskInfo;
 begin
   ComboBoxKioskList.Items.Clear;
-  for Kiosk in KioskList do
-  begin
-    if Kiosk.Status = 'waiting' then
-      ComboBoxKioskList.Items.Add(Kiosk.AppID);
-  end;
-  if ComboBoxKioskList.Items.Count > 0 then
-    ComboBoxKioskList.ItemIndex := 0;
+  try
+    for Kiosk in KioskList do
+    begin
+      if Kiosk.Status = 'waiting' then
+        ComboBoxKioskList.Items.Add(Kiosk.AppID);
+    end;
 
+    if ComboBoxKioskList.Items.Count > 0 then
+    begin
+      ComboBoxKioskList.ItemIndex := 0;
+      BitBtnStart.Enabled := True;
+    end
+    else
+    begin
+      BitBtnStart.Enabled := False;
+      ShowMessage('No available kiosks.');
+    end;
+  except
+    on E: Exception do
+      ShowMessage('Error populating kiosk list: ' + E.Message);
+  end;
 end;
 
 end.

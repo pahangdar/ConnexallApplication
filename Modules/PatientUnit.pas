@@ -2,6 +2,9 @@ unit PatientUnit;
 
 interface
 
+uses
+  System.SysUtils, ValidationUtils;
+
 type
   TPatient = class
   private
@@ -16,12 +19,13 @@ type
     constructor Create; overload;
     constructor Create(
       APatientID: Integer;
-      AFirstName: string;
-      ALastName: string;
-      APhoneNumber: string;
-      AAddress: string;
-      ADateOfBirth: TDateTime;
-      AEmail: string
+      const
+      AFirstName,
+      ALastName,
+      APhoneNumber,
+      AAddress,
+      AEmail: string;
+      ADateOfBirth: TDateTime
     ); overload;
 
     function GetFullName: string;
@@ -40,17 +44,33 @@ implementation
 constructor TPatient.Create;
 begin
   inherited Create;
+  FPatientID := -1;
+  FFirstName := '';
+  FLastName := '';
+  FPhoneNumber := '';
+  FAddress := '';
+  FEmail := '';
+  FDateOfBirth := 0;
 end;
 
-constructor TPatient.Create(APatientID: Integer; AFirstName: string; ALastName: string; APhoneNumber: string; AAddress: string; ADateOfBirth: TDateTime; AEmail: string);
+constructor TPatient.Create(APatientID: Integer; const AFirstName, ALastName, APhoneNumber, AAddress, AEmail: string; ADateOfBirth: TDateTime);
 begin
+  if APatientID <= 0 then
+    raise Exception.Create('Invalid Patient ID.');
+  if AFirstName.Trim.IsEmpty or ALastName.Trim.IsEmpty then
+    raise Exception.Create('First name and last name cannot be empty.');
+  if not IsValidEmail(AEmail) then
+    raise Exception.Create('Invalid email format.');
+  if not IsValidPhoneNumber(APhoneNumber) then
+    raise Exception.Create('Invalid phone number.');
+
   FPatientID := APatientID;
   FFirstName := AFirstName;
   FLastName := ALastName;
   FPhoneNumber := APhoneNumber;
   FAddress := AAddress;
+  FEmail := AEmail;
   FDateOfBirth := ADateOfBirth;
-  FEmail := AEmail
 end;
 
 function TPatient.GetFullName: string;

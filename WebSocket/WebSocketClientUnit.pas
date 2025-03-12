@@ -1,6 +1,7 @@
 unit WebSocketClientUnit;
 
 interface
+
 uses
   System.Classes, System.SysUtils, system.JSON, VCL.Dialogs, System.Generics.Collections,
   sgcWebSocket, sgcWebSocket_Classes, System.IniFiles, System.DateUtils,
@@ -20,7 +21,7 @@ type
   TOnVerificationDoneEvent = procedure(Sender: TObject;
     AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>) of object;
 
-  TRecievedMessageEvent = procedure(Sender: TObject; const Message: string) of object;
+  TReceivedMessageEvent = procedure(Sender: TObject; const Message: string) of object;
   TOnTableUpdatedEvent = procedure(Sender: TObject; const TableName: string; WorkingDate: TDateTime) of object;
 
   TWebSocketClient = class
@@ -31,7 +32,7 @@ type
     FWorkingDate: TDateTime;
     FOnKioskListChanged: TNotifyEvent;
     FOnVerificationDone: TOnVerificationDoneEvent;
-    FOnRecievedMessage: TRecievedMessageEvent;
+    FOnRecievedMessage: TReceivedMessageEvent;
     FOnTableUpdated: TOnTableUpdatedEvent;
     FOnAppIDAssigned: TNotifyEvent;
     FOnDisconnect: TNotifyEvent;
@@ -46,6 +47,12 @@ type
     procedure HandleError(Connection: TsgcWSConnection; const Error: string);
     procedure Initialize;
     procedure UpdateWorkingDate(AWorkingDate: TDateTime = 0);
+
+    procedure HandleAssignID(JSON: TJSONObject);
+    procedure HandleActiveKioskApps(JSON: TJSONObject);
+    procedure HandleVerificationResult(JSON: TJSONObject);
+    procedure HandleKioskListChanged;
+    procedure HandleTableUpdated(JSON: TJSONObject);
   public
     constructor Create;
     destructor Destroy; override;
@@ -63,7 +70,7 @@ type
     property WorkingDate: TDateTime read FWorkingDate write SetWorkingDate;
     property OnKioskListChanged: TNotifyEvent read FOnKioskListChanged write FOnKioskListChanged;
     property OnVerificationDone: TOnVerificationDoneEvent read FOnVerificationDone write FOnVerificationDone;
-    property OnRecievedMessage: TRecievedMessageEvent read FOnRecievedMessage write FOnRecievedMessage;
+    property OnRecievedMessage: TReceivedMessageEvent read FOnRecievedMessage write FOnRecievedMessage;
     property OnTableUpdated: TOnTableUpdatedEvent read FOnTableUpdated write FOnTableUpdated;
     property OnAppIDAssigned: TNotifyEvent read FOnAppIDAssigned write FOnAppIDAssigned;
     property OnDisconnect: TNotifyEvent read FOnDisconnect write FOnDisconnect;
@@ -97,19 +104,37 @@ end;
 procedure TWebSocketClient.Initialize;
 var
   IniFile: TIniFile;
+  IniFilePath: string;
 begin
-  IniFile := TIniFile.Create(ExtractFilePath(ParamStr(0)) + 'config.ini');
+  IniFilePath := ExtractFilePath(ParamStr(0)) + 'config.ini';
+
+  if not FileExists(IniFilePath) then
+  begin
+    raise Exception.CreateFmt('Configuration file not found: %s', [IniFilePath]);
+  end;
+
+  IniFile := TIniFile.Create(IniFilePath);
   try
-    FWebSocket.Host := IniFile.ReadString('WebSocket', 'Host', '');
-    FWebSocket.Port := IniFile.ReadInteger('WebSocket', 'Port', 8080);
-    FWebSocket.Options.Parameters := IniFile.ReadString('WebSocket', 'Parameters', '/');
-    FWebSocket.TLS := False;
-    FWebSocket.Specifications.RFC6455 := True;
-    FWebSocket.Extensions.PerMessage_Deflate.Enabled := False;
+    try
+      FWebSocket.Host := IniFile.ReadString('WebSocket', 'Host', 'localhost');
+      FWebSocket.Port := IniFile.ReadInteger('WebSocket', 'Port', 8080);
+      FWebSocket.Options.Parameters := IniFile.ReadString('WebSocket', 'Parameters', '/');
+
+      FWebSocket.TLS := IniFile.ReadBool('WebSocket', 'TLS', False);
+
+      FWebSocket.Specifications.RFC6455 := True;
+      FWebSocket.Extensions.PerMessage_Deflate.Enabled := False;
+    except
+      on E: Exception do
+      begin
+        raise Exception.CreateFmt('Error reading WebSocket configuration: %s', [E.Message]);
+      end;
+    end;
   finally
     IniFile.Free;
   end;
 end;
+
 
 class function TWebSocketClient.GetInstance: TWebSocketClient;
 begin
@@ -202,6 +227,7 @@ begin
     MessageJSON.AddPair('workingDate', DateToStr(FWorkingDate));
     MessageJSON.AddPair('table', ATableName);
     MessageJSON.AddPair('senderAppID', FAppID);
+
     FWebSocket.WriteData(MessageJSON.ToJSON);
   finally
     MessageJSON.Free;
@@ -252,84 +278,99 @@ end;
 
 procedure TWebSocketClient.HandleMessage(Connection: TsgcWSConnection; const Text: string);
 var
-  JSONValue: TJSONValue;
-  JSON, DetailJSON: TJSONObject;
+  JSON: TJSONObject;
   MsgType: string;
-  AppointmentID: Integer;
-  ResultValue: string;
-  ResultDetails: TJSONArray;
-  DetailArray: TArray<TVerificationResultDetail>;
-  Detail: TVerificationResultDetail;
-  TableName, WorkingDateStr, SenderAppID: string;
-  WorkingDate: TDateTime;
-  I: Integer;
 begin
-  JSON := nil;
+  JSON := TJSONObject.ParseJSONValue(Text) as TJSONObject;
+  if not Assigned(JSON) then Exit;
   try
-    JSON := TJSONObject.ParseJSONValue(Text) as TJSONObject;
-    if not Assigned(JSON) then
-      Exit;
-
     if Assigned(FOnRecievedMessage) then
       FOnRecievedMessage(Self, Text);
 
     MsgType := JSON.GetValue<string>('type');
+
     if MsgType = 'assign_id' then
-    begin
-      JSONValue := JSON.GetValue('appID');
-      if Assigned(JSONValue) then
-      begin
-        FAppID := JSONValue.Value;
-        GetActiveKioskApps;
-        if Assigned(FOnAppIDAssigned) then
-          FOnAppIDAssigned(Self);
-        //        ShowMessage('AppID assigned: ' + FAppID);
-      end
-      else
-        ShowMessage('Error on Requesting ID');
-    end
+      HandleAssignID(JSON)
     else if MsgType = 'active_kiosk_apps' then
-    begin
-      UpdateKioskList(JSON.GetValue<TJSONArray>('apps'));
-      if Assigned(FOnKioskListChanged) then
-        FOnKioskListChanged(Self);
-    end
+      HandleActiveKioskApps(JSON)
     else if MsgType = 'verification_result' then
-    begin
-      AppointmentID := JSON.GetValue<Integer>('appointmentId');
-      ResultValue := JSON.GetValue<string>('result');
-      ResultDetails := JSON.GetValue<TJSONArray>('resultDetails');
-      SetLength(DetailArray, ResultDetails.Count);
-      for I := 0 to ResultDetails.Count - 1 do
-      begin
-        DetailJSON := ResultDetails.Items[I] as TJSONObject;
-        Detail.Question := DetailJSON.GetValue<string>('question');
-        Detail.IsCorrect := DetailJSON.GetValue<Boolean>('isCorrect');
-        DetailArray[I] := Detail;
-      end;
-      if Assigned(FOnVerificationDone) then
-        FOnVerificationDone(Self, AppointmentID, ResultValue, DetailArray);
-    end
+      HandleVerificationResult(JSON)
     else if MsgType = 'kiosk_list_changed' then
-    begin
-      GetActiveKioskApps;
-    end
+      HandleKioskListChanged
     else if MsgType = 'table_updated' then
-    begin
-      TableName := JSON.GetValue<string>('table');
-      WorkingDateStr := JSON.GetValue<string>('workingDate');
-      SenderAppID := JSON.GetValue<string>('senderAppID');
-      if TryStrToDate(WorkingDateStr, WorkingDate) then
-      begin
-        if (SenderAppID <> FAppID) and Assigned(FOnTableUpdated) then
-          FOnTableUpdated(Self, TableName, WorkingDate);
-      end
-      else
-        ShowMessage('Invalid date format: ' + WorkingDateStr);
-    end;
+      HandleTableUpdated(JSON);
   finally
     JSON.Free;
   end;
+end;
+
+procedure TWebSocketClient.HandleAssignID(JSON: TJSONObject);
+var
+  JSONValue: TJSONValue;
+begin
+  JSONValue := JSON.GetValue('appID');
+  if Assigned(JSONValue) then
+  begin
+    FAppID := JSONValue.Value;
+    GetActiveKioskApps;
+    if Assigned(FOnAppIDAssigned) then
+      FOnAppIDAssigned(Self);
+  end
+  else
+    raise Exception.Create('Error on Requesting ID');
+end;
+
+procedure TWebSocketClient.HandleActiveKioskApps(JSON: TJSONObject);
+begin
+  UpdateKioskList(JSON.GetValue<TJSONArray>('apps'));
+  if Assigned(FOnKioskListChanged) then
+    FOnKioskListChanged(Self);
+end;
+
+procedure TWebSocketClient.HandleVerificationResult(JSON: TJSONObject);
+var
+  AppointmentID: Integer;
+  ResultValue: string;
+  ResultDetails: TJSONArray;
+  DetailArray: TArray<TVerificationResultDetail>;
+  I: Integer;
+  DetailJSON: TJSONObject;
+begin
+  AppointmentID := JSON.GetValue<Integer>('appointmentId');
+  ResultValue := JSON.GetValue<string>('result');
+  ResultDetails := JSON.GetValue<TJSONArray>('resultDetails');
+
+  SetLength(DetailArray, ResultDetails.Count);
+  for I := 0 to ResultDetails.Count - 1 do
+  begin
+    DetailJSON := ResultDetails.Items[I] as TJSONObject;
+    DetailArray[I].Question := DetailJSON.GetValue<string>('question');
+    DetailArray[I].IsCorrect := DetailJSON.GetValue<Boolean>('isCorrect');
+  end;
+
+  if Assigned(FOnVerificationDone) then
+    FOnVerificationDone(Self, AppointmentID, ResultValue, DetailArray);
+end;
+
+procedure TWebSocketClient.HandleKioskListChanged;
+begin
+  GetActiveKioskApps;
+end;
+
+procedure TWebSocketClient.HandleTableUpdated(JSON: TJSONObject);
+var
+  TableName, WorkingDateStr, SenderAppID: string;
+  WorkingDate: TDateTime;
+begin
+  TableName := JSON.GetValue<string>('table');
+  WorkingDateStr := JSON.GetValue<string>('workingDate');
+  SenderAppID := JSON.GetValue<string>('senderAppID');
+
+  if not TryStrToDate(WorkingDateStr, WorkingDate) then
+    raise Exception.CreateFmt('Invalid date format: %s', [WorkingDateStr]);
+
+  if (SenderAppID <> FAppID) and Assigned(FOnTableUpdated) then
+    FOnTableUpdated(Self, TableName, WorkingDate);
 end;
 
 procedure TWebSocketClient.UpdateKioskList(JSONArray: TJSONArray);

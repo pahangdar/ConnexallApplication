@@ -68,7 +68,7 @@ begin
 
   PatientObj := JSONObj.GetValue<TJSONObject>('patient');
   if Assigned(PatientObj) then
-  begin
+  try
     Result.Patient := TPatient.Create;
     Result.Patient.PatientID := PatientObj.GetValue<Integer>('patientID');
     Result.Patient.FirstName := PatientObj.GetValue<string>('firstName');
@@ -76,16 +76,22 @@ begin
     Result.Patient.PhoneNumber := PatientObj.GetValue<string>('phoneNumber');
     Result.Patient.Address := PatientObj.GetValue<string>('address');
     // other fields
+  except
+    FreeAndNil(Result.Patient);
+    raise;
   end;
 
   DoctorObj := JSONObj.GetValue<TJSONObject>('doctor');
   if Assigned(DoctorObj) then
-  begin
+  try
     Result.Doctor := TDoctor.Create;
     Result.Doctor.DoctorID := DoctorObj.GetValue<Integer>('doctorID');
     Result.Doctor.FirstName := DoctorObj.GetValue<string>('firstName');
     Result.Doctor.LastName := DoctorObj.GetValue<string>('lastName');
     // other fields
+  except
+    FreeAndNil(Result.Doctor);
+    raise;
   end;
 end;
 
@@ -99,7 +105,8 @@ var
 begin
   Result := TObjectList<TAppointment>.Create;
   try
-    URL := FBaseURL + '/api/Appointments/date/' + FormatDateTime('yyyy-mm-dd', ADate);
+//    URL := FBaseURL + '/api/Appointments/date/' + FormatDateTime('yyyy-mm-dd', ADate);
+    URL := Format('%s/api/Appointments/date/%s', [FBaseURL, FormatDateTime('yyyy-mm-dd', ADate)]);
     Response := FHttpClient.Get(URL, nil,
     [TNameValuePair.Create('X-API-Key', FAPIKey)]);
 

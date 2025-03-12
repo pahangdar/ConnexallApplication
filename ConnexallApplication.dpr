@@ -14,18 +14,19 @@ uses
   StartVerificationFormUnit in 'Forms\StartVerificationFormUnit.pas' {StartVerificationForm},
   AppointmentTabUnit in 'Modules\AppointmentTabUnit.pas',
   AppointmentsAPIUnit in 'DataAccess\AppointmentsAPIUnit.pas',
-  EventManagerUnit in 'Utils\EventManagerUnit.pas';
+  EventManagerUnit in 'Utils\EventManagerUnit.pas',
+  NotificationFormUnit in 'Forms\NotificationFormUnit.pas' {NotificationForm},
+  ValidationUtils in 'Utils\ValidationUtils.pas';
 
 {$R *.res}
 
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
+  TStyleManager.TrySetStyle('Sky');
   Application.Title := 'Connexall Application';
-  TStyleManager.TrySetStyle('Lavender Classico');
   TWebSocketClient.Instance.Connect;
   Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TStartVerificationForm, StartVerificationForm);
-  //  Application.CreateForm(TCheckInForm, CheckInForm);
   Application.Run;
 end.

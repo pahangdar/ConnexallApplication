@@ -10,7 +10,7 @@ uses
   sgcWebSocket_Client, sgcWebSocket, System.Math, DBGridEhGrouping, ToolCtrlsEh,
   DBGridEhToolCtrls, DynVarsEh, EhLibVCL, GridsEh, DBAxisGridsEh, DBGridEh,
   Data.DB, Datasnap.DBClient, Vcl.Menus,
-  AppointmentsUtils, WebSocketClientUnit, AppointmentTabUnit, EventManagerUnit;
+  AppointmentsUtils, WebSocketClientUnit, AppointmentTabUnit, EventManagerUnit, NotificationFormUnit;
 
 type
   TCheckInForm = class(TForm)
@@ -20,7 +20,6 @@ type
     PageControlAppointments: TPageControl;
     LabelTotal: TLabel;
     BitBtnRefresh: TBitBtn;
-    Memo1: TMemo;
     FlowPanelKiosksStatus: TFlowPanel;
     ClientDataSet: TClientDataSet;
     PanelConnectionStatus: TPanel;
@@ -44,7 +43,7 @@ type
     procedure SetupClientDataSet;
     procedure CheckConnectionStatus;
     procedure LoadAppointments(Appointments: TObjectList<TAppointment>);
-    procedure LoadAppointmentsForSelectedDate;
+    procedure LoadAppointmentsForSelectedDate(ADate: TDateTime);
     function  FilterAppointmentsByStatus(const Status: string): Integer;
     procedure SetFormSize;
     procedure InitializeTabs;
@@ -61,6 +60,8 @@ type
     FWebSocketClient: TWebSocketClient;
     AppointmentTabs: array[TAppointmentStatus] of TAppointmentTab;
     procedure HandleKioskListChanged(Sender: TObject);
+    procedure ClearKioskPanels;
+    procedure AddKioskPanels;
     procedure HandleVerificationResult(Sender: TObject;
        AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean);
     procedure HandleRecievedMessage(Sender: TObject; const Message: string);
@@ -79,7 +80,7 @@ implementation
 {$R *.dfm}
 
 uses PatientUnit, DoctorUnit, MainFormUnit,
-      StartVerificationFormUnit, DataModuleUnit, AppointmentsAPIUnit;
+      StartVerificationFormUnit, AppointmentsAPIUnit;
 
 function TCheckInForm.UpdateAppointmentSelectedStatus(OldStatus, NewStatus: TAppointmentStatus): Boolean;
 var
@@ -133,7 +134,7 @@ begin
     );
 end;
 
-procedure TCheckInForm.LoadAppointmentsForSelectedDate;
+procedure TCheckInForm.LoadAppointmentsForSelectedDate(ADate: TDateTime);
 var
   Appointments: TObjectList<TAppointment>;
   CountByStatus: array[TAppointmentStatus] of Integer;
@@ -143,7 +144,7 @@ begin
   for Status := Low(TAppointmentStatus) to High(TAppointmentStatus) do
     CountByStatus[Status] := 0;
 
-  Appointments := TAppointmentsAPI.GetAppointmentsByDate(DateTimePicker.Date);
+  Appointments := TAppointmentsAPI.GetAppointmentsByDate(ADate);
   try
     for Appointment in Appointments do
       Inc(CountByStatus[Appointment.Status]);
@@ -165,22 +166,22 @@ end;
 
 procedure TCheckInForm.miConfirmedCompleteClick(Sender: TObject);
 begin
-  UpdateAppointmentSelectedStatus(Confirmed, Completed);
+  UpdateAppointmentSelectedStatus(asConfirmed, asCompleted);
 end;
 
 procedure TCheckInForm.miNotConfirmedConfirmedClick(Sender: TObject);
 begin
-  UpdateAppointmentSelectedStatus(NotConfirmed, Confirmed);
+  UpdateAppointmentSelectedStatus(asNotConfirmed, asConfirmed);
 end;
 
 procedure TCheckInForm.miNotConfirmedPendingClick(Sender: TObject);
 begin
-  UpdateAppointmentSelectedStatus(NotConfirmed, Pending);
+  UpdateAppointmentSelectedStatus(asNotConfirmed, asPending);
 end;
 
 procedure TCheckInForm.miPendingCancelClick(Sender: TObject);
 begin
-  UpdateAppointmentSelectedStatus(Pending, Cancelled);
+  UpdateAppointmentSelectedStatus(asPending, asCancelled);
 end;
 
 procedure TCheckInForm.miPendingStartVerificationClick(Sender: TObject);
@@ -201,10 +202,10 @@ begin
 
   Appointment := TAppointment.Create;
   Appointment := TAppointmentsAPI.GetAppointmentByID(AppointmentID);
-  if Appointment.Status <> Pending then
+  if Appointment.Status <> asPending then
   begin
     ShowMessage('Error: Sttus of this appointment is changed before');
-    LoadAppointmentsForSelectedDate;
+    LoadAppointmentsForSelectedDate(DateTimePicker.Date);
     Appointment.Free;
     exit;
   end;
@@ -227,7 +228,7 @@ begin
         if Success then
         begin
           if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
-            UpdateAppointmentSelectedStatus(Pending, Confirming);
+            UpdateAppointmentSelectedStatus(asPending, asConfirming);
         end
         else
           ShowMessage('Error: Verification has not started on the Kiosk');
@@ -239,6 +240,25 @@ begin
 end;
 
 procedure TCheckInForm.HandleKioskListChanged(Sender: TObject);
+begin
+  FlowPanelKiosksStatus.DisableAlign;
+  try
+    ClearKioskPanels;
+    AddKioskPanels;
+  finally
+    FlowPanelKiosksStatus.EnableAlign;
+  end;
+end;
+
+procedure TCheckInForm.ClearKioskPanels;
+var
+  I: Integer;
+begin
+  for I := FlowPanelKiosksStatus.ControlCount - 1 downto 1 do
+    FlowPanelKiosksStatus.Controls[I].Free;
+end;
+
+procedure TCheckInForm.AddKioskPanels;
 var
   I: Integer;
   Kiosk: TKioskInfo;
@@ -246,37 +266,32 @@ var
   KioskShape: TShape;
   KioskLabel: TLabel;
 begin
-  FlowPanelKiosksStatus.DisableAlign;
-  try
-    for I := FlowPanelKiosksStatus.ControlCount - 1 downto 1 do
-      FlowPanelKiosksStatus.Controls[I].Free;
+  for I := 0 to WebSocketClient.KioskList.Count - 1 do
+  begin
+    Kiosk := WebSocketClient.KioskList[I];
 
-    for I := 0 to WebSocketClient.KioskList.Count - 1 do
-    begin
-      Kiosk := WebSocketClient.KioskList[I];
-      KioskPanel := TPanel.Create(FlowPanelKiosksStatus);
-      KioskPanel.Parent := FlowPanelKiosksStatus;
-      KioskPanel.Align := alLeft;
-      KioskPanel.Width := 120;
-      KioskPanel.BevelOuter := bvNone;
-      KioskPanel.Caption := '';
-      KioskShape := TShape.Create(KioskPanel);
-      KioskShape.Parent := KioskPanel;
-      KioskShape.Shape := stCircle;
-      KioskShape.Left := 10;
-      KioskShape.Top := 10;
-      KioskShape.Width := 20;
-      KioskShape.Height := 20;
-      KioskShape.Brush.Color := IfThen(Kiosk.Status = 'waiting', clGreen, clRed);
-      KioskShape.Pen.Color := clBlack;
-      KioskLabel := TLabel.Create(KioskPanel);
-      KioskLabel.Parent := KioskPanel;
-      KioskLabel.Left := KioskShape.Left + KioskShape.Width + 10;
-      KioskLabel.Top := 10;
-      KioskLabel.Caption := Kiosk.AppID;
-    end;
-  finally
-    FlowPanelKiosksStatus.EnableAlign;
+    KioskPanel := TPanel.Create(FlowPanelKiosksStatus);
+    KioskPanel.Parent := FlowPanelKiosksStatus;
+    KioskPanel.Align := alLeft;
+    KioskPanel.Width := 120;
+    KioskPanel.BevelOuter := bvNone;
+    KioskPanel.Caption := '';
+
+    KioskShape := TShape.Create(KioskPanel);
+    KioskShape.Parent := KioskPanel;
+    KioskShape.Shape := stCircle;
+    KioskShape.Left := 10;
+    KioskShape.Top := 10;
+    KioskShape.Width := 20;
+    KioskShape.Height := 20;
+    KioskShape.Brush.Color := IfThen(Kiosk.Status = 'waiting', clGreen, clRed);
+    KioskShape.Pen.Color := clBlack;
+
+    KioskLabel := TLabel.Create(KioskPanel);
+    KioskLabel.Parent := KioskPanel;
+    KioskLabel.Left := KioskShape.Left + KioskShape.Width + 10;
+    KioskLabel.Top := 10;
+    KioskLabel.Caption := Kiosk.AppID;
   end;
 end;
 
@@ -302,24 +317,28 @@ begin
     end;
     ClientDataSet.Filtered := true;
     if Result = 'Confirmed' then
-       ResultStatus := Confirmed
+       ResultStatus := asConfirmed
     else
-      ResultStatus := NotConfirmed;
+      ResultStatus := asNotConfirmed;
 
-    DecrementRecordCount(Confirming);
+    DecrementRecordCount(asConfirming);
     IncrementRecordCount(ResultStatus);
+
+    TNotificationForm.ShowAppNotification('A verification is done (' + Result + ')');
   end;
 end;
 
 procedure TCheckInForm.HandleRecievedMessage(Sender: TObject; const Message: string);
 begin
-  Memo1.Lines.Add(Message);
+//  Memo1.Lines.Add(Message);
 end;
 
 procedure TCheckInForm.HandleTableUpdated(Sender: TObject; const TableName: string; WorkingDate: TDateTime);
 begin
-  ShowMessage(Format('Table "%s" was updated for date %s.', [TableName, DateToStr(WorkingDate)]));
-  // Implement logic to reload data if the table and date match the working date
+  if (TableName.ToLower <> 'appointments') or ( WorkingDate <> DateTimePicker.Date) then
+    exit;
+  TNotificationForm.ShowAppNotification(Format('"%s" updated for date %s.', [TableName, DateToStr(WorkingDate)]));
+  LoadAppointmentsForSelectedDate(DateTimePicker.Date);
 end;
 
 procedure TCheckInForm.HandleAppIDAssigned(Sender: TObject);
@@ -340,7 +359,7 @@ end;
 
 procedure TCheckInForm.BitBtnRefreshClick(Sender: TObject);
 begin
-  LoadAppointmentsForSelectedDate;
+  LoadAppointmentsForSelectedDate(DateTimePicker.Date);
 end;
 
 function TCheckInForm.FilterAppointmentsByStatus(const Status: string): Integer;
@@ -383,7 +402,7 @@ end;
 
 procedure TCheckInForm.DateTimePickerChange(Sender: TObject);
 begin
-  LoadAppointmentsForSelectedDate;
+  LoadAppointmentsForSelectedDate(DateTimePicker.Date);
 end;
 
 procedure TCheckInForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -477,7 +496,7 @@ begin
   MainForm.ToolButtonCheckIn.Enabled := false;
   self.DateTimePicker.Date := WebSocketClient.WorkingDate;
 
-  LoadAppointmentsForSelectedDate;
+  LoadAppointmentsForSelectedDate(DateTimePicker.Date);
 
   self.PageControlAppointments.ActivePageIndex := 0;
 end;

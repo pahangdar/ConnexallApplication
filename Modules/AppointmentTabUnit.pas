@@ -59,11 +59,9 @@ constructor TAppointmentTab.Create(
 begin
   if not Assigned(AOwner) then
     raise Exception.Create('AOwner is not assigned.');
-  if not Assigned(ADataSource) then
-    raise Exception.Create('ADataSource is not assigned.');
 
   if not Assigned(ADataSource) then
-    raise Exception.Create('ADataSource.DataSet is not assigned.');
+    raise Exception.Create('ADataSource is not assigned.');
 
   FStatus := AStatus;
   FTitle := ATitle;
@@ -178,12 +176,12 @@ begin
     MenuItem.Enabled := false;
 
   case FStatus of
-    Pending: StatusPrefix := 'miPending';
-    Confirming: StatusPrefix := 'miConfirming';
-    Confirmed: StatusPrefix := 'miConfirmed';
-    NotConfirmed: StatusPrefix := 'miNotConfirmed';
-    Cancelled: StatusPrefix := 'miCancelled';
-    Completed: StatusPrefix := 'miCompleted';
+    asPending: StatusPrefix := 'miPending';
+    asConfirming: StatusPrefix := 'miConfirming';
+    asConfirmed: StatusPrefix := 'miConfirmed';
+    asNotConfirmed: StatusPrefix := 'miNotConfirmed';
+    asCancelled: StatusPrefix := 'miCancelled';
+    asCompleted: StatusPrefix := 'miCompleted';
   else
     Exit;
   end;
