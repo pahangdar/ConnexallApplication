@@ -23,8 +23,11 @@ type
     ToolButton6: TToolButton;
     ToolButton7: TToolButton;
     ToolButton8: TToolButton;
+    MnuItemAIChat: TMenuItem;
+    ToolButtonAIChat: TToolButton;
     procedure ToolButtonCheckInClick(Sender: TObject);
     procedure FormResize(Sender: TObject);
+    procedure ToolButtonAIChatClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -38,12 +41,25 @@ implementation
 
 {$R *.dfm}
 
-uses CheckInFormUnit;
+uses CheckInFormUnit, AIChatFormUnit;
 
 procedure TMainForm.FormResize(Sender: TObject);
 begin
   if Assigned(CheckInForm) then
     CheckInForm.SetFormSize;
+  if Assigned(AIChatForm) then
+    AIChatForm.SetFormSize;
+end;
+
+procedure TMainForm.ToolButtonAIChatClick(Sender: TObject);
+begin
+  if not Assigned(AIChatForm) then
+  begin
+    AIChatForm := TAIChatForm.Create(Self);
+  end;
+
+  AIChatForm.Show;
+  AIChatForm.SetFormSize;
 end;
 
 procedure TMainForm.ToolButtonCheckInClick(Sender: TObject);

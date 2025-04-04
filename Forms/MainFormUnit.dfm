@@ -14,6 +14,7 @@ object MainForm: TMainForm
   Menu = MainMenu
   Position = poDesktopCenter
   WindowState = wsMaximized
+  OnClick = ToolButtonAIChatClick
   OnResize = FormResize
   TextHeight = 15
   object ToolBarMain: TToolBar
@@ -98,14 +99,26 @@ object MainForm: TMainForm
       ImageIndex = 6
       OnClick = ToolButtonCheckInClick
     end
+    object ToolButtonAIChat: TToolButton
+      Left = 639
+      Top = 0
+      Caption = 'AI Chat'
+      ImageIndex = 7
+      OnClick = ToolButtonAIChatClick
+    end
   end
   object MainMenu: TMainMenu
     Left = 652
     Top = 426
     object MenuPatient: TMenuItem
-      Caption = 'Patient'
+      Caption = 'Appointments'
       object MnuItemCheckIn: TMenuItem
-        Caption = 'Check In'
+        Caption = 'Check-In'
+        OnClick = ToolButtonCheckInClick
+      end
+      object MnuItemAIChat: TMenuItem
+        Caption = 'AI Chat'
+        OnClick = ToolButtonAIChatClick
       end
     end
   end

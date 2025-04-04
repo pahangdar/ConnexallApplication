@@ -133,6 +133,10 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="Utils\ValidationUtils.pas"/>
+        <DCCReference Include="Forms\AIChatFormUnit.pas">
+            <Form>AIChatForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

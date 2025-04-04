@@ -16,7 +16,8 @@ uses
   AppointmentsAPIUnit in 'DataAccess\AppointmentsAPIUnit.pas',
   EventManagerUnit in 'Utils\EventManagerUnit.pas',
   NotificationFormUnit in 'Forms\NotificationFormUnit.pas' {NotificationForm},
-  ValidationUtils in 'Utils\ValidationUtils.pas';
+  ValidationUtils in 'Utils\ValidationUtils.pas',
+  AIChatFormUnit in 'Forms\AIChatFormUnit.pas' {AIChatForm};
 
 {$R *.res}
 
@@ -28,5 +29,6 @@ begin
   TWebSocketClient.Instance.Connect;
   Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TStartVerificationForm, StartVerificationForm);
+//  Application.CreateForm(TAIChatForm, AIChatForm);
   Application.Run;
 end.
