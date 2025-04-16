@@ -17,7 +17,8 @@ uses
   EventManagerUnit in 'Utils\EventManagerUnit.pas',
   NotificationFormUnit in 'Forms\NotificationFormUnit.pas' {NotificationForm},
   ValidationUtils in 'Utils\ValidationUtils.pas',
-  AIChatFormUnit in 'Forms\AIChatFormUnit.pas' {AIChatForm};
+  AIChatFormUnit in 'Forms\AIChatFormUnit.pas' {AIChatForm},
+  ChatBubbleFrameUnit in 'Forms\ChatBubbleFrameUnit.pas' {ChatBubbleFrame: TFrame};
 
 {$R *.res}
 
@@ -29,6 +30,6 @@ begin
   TWebSocketClient.Instance.Connect;
   Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TStartVerificationForm, StartVerificationForm);
-//  Application.CreateForm(TAIChatForm, AIChatForm);
+  //  Application.CreateForm(TAIChatForm, AIChatForm);
   Application.Run;
 end.

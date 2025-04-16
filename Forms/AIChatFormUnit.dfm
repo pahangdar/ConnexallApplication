@@ -63,13 +63,14 @@ object AIChatForm: TAIChatForm
     TabOrder = 1
     object TabSheetChat: TTabSheet
       Caption = 'Chat'
-      object MemoChat: TMemo
+      object ScrollBoxChat: TScrollBox
         Left = 0
         Top = 0
         Width = 614
         Height = 298
+        VertScrollBar.Tracking = True
         Align = alClient
-        ReadOnly = True
+        BorderStyle = bsNone
         TabOrder = 0
       end
     end
@@ -100,7 +101,6 @@ object AIChatForm: TAIChatForm
         RowCount = 1
         FixedRows = 0
         TabOrder = 0
-        ExplicitHeight = 129
       end
     end
   end

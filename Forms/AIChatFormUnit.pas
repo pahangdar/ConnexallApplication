@@ -21,8 +21,8 @@ type
     TabSheetSQL: TTabSheet;
     TabSheetResult: TTabSheet;
     MemoSQL: TMemo;
-    MemoChat: TMemo;
     StringGridResults: TStringGrid;
+    ScrollBoxChat: TScrollBox;
     procedure BtnAskAIClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -32,8 +32,8 @@ type
     function GenerateSQL(const Query: string): string;
     function ExecuteSql(const SQL: string): string;
     function GenerateResponse(const Query, SQL, SQLResults: string): string;
-    procedure UpdateChatHistory(const Query, Response: string);
     procedure UpdateSQLTab(const SQL: string);
+    procedure AddChatMessage(const MsgText: string; IsUser: Boolean);
   public
     { Public declarations }
   end;
@@ -43,9 +43,64 @@ var
 
 implementation
 uses
-  REST.Json, Data.DBXJSON, MainFormUnit;
+  REST.Json, Data.DBXJSON, MainFormUnit, ChatBubbleFrameUnit;
 
 {$R *.dfm}
+
+procedure TAIChatForm.AddChatMessage(const MsgText: string; IsUser: Boolean);
+var
+  ChatBubble: TChatBubbleFrame;
+  BubbleMaxWidth, LeftPos: Integer;
+begin
+  // Max width for the bubble
+  BubbleMaxWidth := ScrollBoxChat.ClientWidth - 20;
+
+  ChatBubble := TChatBubbleFrame.Create(Self);
+  ChatBubble.Parent := ScrollBoxChat;
+  ChatBubble.Name := ''; // Avoid duplicate error
+  ChatBubble.Align := alTop;
+  ChatBubble.AutoSize := True;
+  ChatBubble.Width := BubbleMaxWidth;
+
+  ChatBubble.PanelBubble.AutoSize := false;
+  ChatBubble.LabelMessage.AutoSize := false;
+
+
+  with ChatBubble.PanelBubble do
+  begin
+//    Color := IfThen(IsUser, clSkyBlue, clWhite);
+//    BorderRadius := 20;
+    Constraints.MaxWidth := BubbleMaxWidth;
+
+    Anchors := [akLeft, akTop];
+  end;
+
+  with ChatBubble.LabelMessage do
+  begin
+    Caption := MsgText;
+    WordWrap := True;
+    Width := BubbleMaxWidth - 200;
+  end;
+
+  ChatBubble.LabelMessage.AutoSize := true;
+  ChatBubble.PanelBubble.AutoSize := true;
+
+  if IsUser then
+  begin
+    ChatBubble.PanelBubble.Left := ChatBubble.Width - ChatBubble.PanelBubble.Width - 15;
+    ChatBubble.ShapeBorder.Brush.Color := clSkyBlue;
+  end
+  else
+  begin
+    ChatBubble.PanelBubble.Left := 10;
+    ChatBubble.ShapeBorder.Brush.Color := clWhite;
+  end;
+
+//  ChatBubble.Visible := True;
+
+  // Scroll to bottom
+  ScrollBoxChat.VertScrollBar.Position := ScrollBoxChat.VertScrollBar.Range;
+end;
 
 procedure TAIChatForm.BtnAskAIClick(Sender: TObject);
 var
@@ -53,6 +108,8 @@ var
 begin
   Query := MemoInput.Text;
   if Query.Trim = '' then Exit;
+
+  AddChatMessage(Query, true);
 
   // Step 1: Call generate-sql
   SQL := GenerateSQL(Query);
@@ -63,7 +120,7 @@ begin
 
   // Step 3: Call generate-response
   AIResponse := GenerateResponse(Query, SQL, ResultsJSON);
-  UpdateChatHistory(Query, AIResponse);
+  AddChatMessage(AIResponse, false);
 
   MemoInput.Clear;
 end;
@@ -211,7 +268,8 @@ begin
       end;
     end
     else
-      raise Exception.CreateFmt('HTTP Error %d: %s', [Response.StatusCode, Response.StatusText]);
+      Result := Format('HTTP Error %d: %s', [Response.StatusCode, Response.StatusText]);
+//      raise Exception.CreateFmt('HTTP Error %d: %s', [Response.StatusCode, Response.StatusText]);
   finally
     Content.Free;
     HTTPClient.Free;
@@ -229,13 +287,6 @@ procedure TAIChatForm.FormShow(Sender: TObject);
 begin
   MainForm.ToolButtonAIChat.Enabled := false;
   self.PageControlResults.ActivePageIndex := 0;
-end;
-
-procedure TAIChatForm.UpdateChatHistory(const Query, Response: string);
-begin
-  MemoChat.Lines.Add('User: ' + Query);
-  MemoChat.Lines.Add('AI: ' + Response);
-  MemoChat.Lines.Add('-----------------------------');
 end;
 
 procedure TAIChatForm.UpdateSQLTab(const SQL: string);
