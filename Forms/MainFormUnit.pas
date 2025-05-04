@@ -25,6 +25,7 @@ type
     ToolButton8: TToolButton;
     MnuItemAIChat: TMenuItem;
     ToolButtonAIChat: TToolButton;
+    ToolButton9: TToolButton;
     procedure ToolButtonCheckInClick(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure ToolButtonAIChatClick(Sender: TObject);

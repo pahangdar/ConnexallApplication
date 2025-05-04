@@ -48,8 +48,6 @@ object AIChatForm: TAIChatForm
       Width = 512
       Height = 105
       Align = alClient
-      Lines.Strings = (
-        'count appointmanes base on their Status')
       TabOrder = 1
     end
   end
