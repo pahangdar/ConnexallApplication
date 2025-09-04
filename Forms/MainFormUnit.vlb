@@ -11,9 +11,6 @@ Coordinates=124,55,111,36
 Coordinates=198,124,87,36
 Visible=True
 
-[MenuPatient]
-Coordinates=273,1,87,36
-
 [ImageListToolBarMain]
 Coordinates=236,56,143,36
 
@@ -46,4 +43,7 @@ Coordinates=195,10,84,36
 
 []
 Coordinates=430,166,91,36
+
+[AppoinmentMenue]
+Coordinates=273,1,87,36
 

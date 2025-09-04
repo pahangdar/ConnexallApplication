@@ -56,15 +56,13 @@ end;
 
 constructor TAppointment.Create(AAppointmentID: Integer; ADate: TDateTime; ATime: TDateTime; const APatient: TPatient; const ADoctor: TDoctor; AStatus: TAppointmentStatus);
 begin
+  inherited Create;
   if AAppointmentID <= 0 then
     raise Exception.Create('Invalid Appointment ID.');
-
   if APatient = nil then
     raise Exception.Create('Patient cannot be nil.');
-
   if ADoctor = nil then
     raise Exception.Create('Doctor cannot be nil.');
-
   if not IsValidStatus(AStatus) then
     raise Exception.Create('Invalid appointment status.');
 

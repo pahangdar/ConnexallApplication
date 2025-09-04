@@ -25,9 +25,6 @@ type
     class procedure ShowAppNotification(const Msg: string);
   end;
 
-//var
-//  NotificationForm: TNotificationForm;
-
 implementation
 
 {$R *.dfm}
@@ -35,7 +32,7 @@ implementation
 class function TNotificationForm.GetInstance: TNotificationForm;
 begin
   if not Assigned(FInstance) then
-    FInstance := TNotificationForm.Create(nil);
+    FInstance := TNotificationForm.Create(Application);
   Result := FInstance;
 end;
 
@@ -57,10 +54,8 @@ begin
   // Set form background
   Color := clBlack;
   // Initialize timers
-//  TimerClose := TTimer.Create(Self);
   TimerClose.Interval := 3000;  // Auto-close after 3 sec
-  TimerClose.Enabled := True;
-//  TimerFadeOut := TTimer.Create(Self);
+  TimerClose.Enabled := False;
   TimerFadeOut.Interval := 100; // Slow fade out effect
   TimerFadeOut.OnTimer := TimerFadeOutTimer;
 end;
@@ -78,7 +73,6 @@ begin
   Left := ScreenWidth - Width - 20;
   Top := ScreenHeight - Height - 20;
   AlphaBlendValue := 220;  // Reset transparency
-  TimerClose.Enabled := False;
   TimerFadeOut.Enabled := False;
 
   TimerClose.Enabled := True;  // Start auto-close timer
@@ -92,9 +86,11 @@ begin
 end;
 
 procedure TNotificationForm.TimerFadeOutTimer(Sender: TObject);
+const
+  FADE_STEP = 15;
 begin
-  if AlphaBlendValue > 15 then
-    AlphaBlendValue := AlphaBlendValue - 15
+  if AlphaBlendValue > FADE_STEP then
+    AlphaBlendValue := AlphaBlendValue - FADE_STEP
   else
   begin
     TimerFadeOut.Enabled := False; // Stop fade-out timer
@@ -103,10 +99,17 @@ begin
 end;
 
 // Singleton method to show notification
+// Thread-safety
 class procedure TNotificationForm.ShowAppNotification(const Msg: string);
 begin
-  GetInstance.ShowNotification(Msg);
+  TThread.Queue(nil,
+    procedure
+    begin
+      GetInstance.ShowNotification(Msg);
+    end
+  );
 end;
+
 
 destructor TNotificationForm.Destroy;
 begin

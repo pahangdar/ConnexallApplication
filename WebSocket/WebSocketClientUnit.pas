@@ -5,7 +5,7 @@ interface
 uses
   System.Classes, System.SysUtils, system.JSON, VCL.Dialogs, System.Generics.Collections,
   sgcWebSocket, sgcWebSocket_Classes, System.IniFiles, System.DateUtils,
-  PatientUnit;
+  PatientUnit, ErrorHandlerUnit;
 
 type
   TKioskInfo = record
@@ -175,6 +175,7 @@ end;
 
 procedure TWebSocketClient.HandleError(Connection: TsgcWSConnection; const Error: string);
 begin
+  TErrorHandler.Log(Error);
   ShowMessage('WebSocket error: ' + Error);
   if Assigned(FOnError) then
     FOnError(Self);
@@ -202,7 +203,9 @@ begin
      if AWorkingDate = 0 then
       WorkingDateValue := 'null'
     else
-      WorkingDateValue := DateToStr(AWorkingDate);
+//      WorkingDateValue := DateToStr(AWorkingDate);
+      WorkingDateValue := FormatDateTime('yyyy-mm-dd', AWorkingDate);
+
     MessageJSON.AddPair('type', 'update_working_date');
     MessageJSON.AddPair('workingDate', WorkingDateValue);
     FWebSocket.WriteData(MessageJSON.ToJSON);
@@ -224,7 +227,7 @@ begin
   MessageJSON := TJSONObject.Create;
   try
     MessageJSON.AddPair('type', 'notify_table_change');
-    MessageJSON.AddPair('workingDate', DateToStr(FWorkingDate));
+    MessageJSON.AddPair('workingDate', FormatDateTime('yyyy-mm-dd', FWorkingDate));
     MessageJSON.AddPair('table', ATableName);
     MessageJSON.AddPair('senderAppID', FAppID);
 
@@ -287,7 +290,8 @@ begin
     if Assigned(FOnRecievedMessage) then
       FOnRecievedMessage(Self, Text);
 
-    MsgType := JSON.GetValue<string>('type');
+//    MsgType := JSON.GetValue<string>('type');
+    if not JSON.TryGetValue<string>('type', MsgType) then exit;
 
     if MsgType = 'assign_id' then
       HandleAssignID(JSON)
@@ -366,7 +370,7 @@ begin
   WorkingDateStr := JSON.GetValue<string>('workingDate');
   SenderAppID := JSON.GetValue<string>('senderAppID');
 
-  if not TryStrToDate(WorkingDateStr, WorkingDate) then
+  if not TryISO8601ToDate(WorkingDateStr, WorkingDate) then
     raise Exception.CreateFmt('Invalid date format: %s', [WorkingDateStr]);
 
   if (SenderAppID <> FAppID) and Assigned(FOnTableUpdated) then

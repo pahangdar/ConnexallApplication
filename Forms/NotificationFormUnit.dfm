@@ -23,6 +23,7 @@ object NotificationForm: TNotificationForm
     Width = 74
     Height = 15
     Caption = 'LabelMessage'
+    WordWrap = True
   end
   object TimerClose: TTimer
     Interval = 3000

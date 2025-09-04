@@ -7,7 +7,8 @@ uses
 
 type
   TOnVerificationDoneEvent = procedure(Sender: TObject;
-    AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>; SuccessStatusUpdate: Boolean) of object;
+    AppointmentID: Integer; Result: string; Details: TArray<TVerificationResultDetail>;
+    SuccessStatusUpdate: Boolean) of object;
 
 
   TEventManager = class
@@ -51,7 +52,15 @@ procedure TEventManager.HandleVerificationResult(Sender: TObject;
 var
   SuccessStatusUpdate: Boolean;
 begin
-  SuccessStatusUpdate := TAppointmentsAPI.UpdateAppointmentStatus(AppointmentID, Result);
+  try
+    SuccessStatusUpdate := TAppointmentsAPI.UpdateAppointmentStatus(AppointmentID, Result);
+  except
+    on E: Exception do
+    begin
+      SuccessStatusUpdate := False;
+    end;
+  end;
+
   if SuccessStatusUpdate and Assigned(FOnVerificationDone) then
     FOnVerificationDone(Self, AppointmentID, Result, Details, SuccessStatusUpdate);
 end;

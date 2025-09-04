@@ -117,7 +117,7 @@ object MainForm: TMainForm
   object MainMenu: TMainMenu
     Left = 652
     Top = 426
-    object MenuPatient: TMenuItem
+    object AppoinmentMenue: TMenuItem
       Caption = 'Appointments'
       object MnuItemCheckIn: TMenuItem
         Caption = 'Check-In'
@@ -125,6 +125,14 @@ object MainForm: TMainForm
       end
       object MnuItemAIChat: TMenuItem
         Caption = 'AI Chat'
+        OnClick = ToolButtonAIChatClick
+      end
+    end
+    object WindowMenu: TMenuItem
+      Caption = 'Window'
+      OnClick = WindowMenuClick
+      object miWindowsList: TMenuItem
+        Caption = 'Windows'
       end
     end
   end

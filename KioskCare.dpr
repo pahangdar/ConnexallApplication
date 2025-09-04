@@ -1,7 +1,9 @@
-program ConnexallApplication;
+program KioskCare;
 
 uses
   Vcl.Forms,
+  Vcl.Dialogs,
+  System.SysUtils,
   MainFormUnit in 'Forms\MainFormUnit.pas' {MainForm},
   CheckInFormUnit in 'Forms\CheckInFormUnit.pas' {CheckInForm},
   Vcl.Themes,
@@ -18,7 +20,9 @@ uses
   NotificationFormUnit in 'Forms\NotificationFormUnit.pas' {NotificationForm},
   ValidationUtils in 'Utils\ValidationUtils.pas',
   AIChatFormUnit in 'Forms\AIChatFormUnit.pas' {AIChatForm},
-  ChatBubbleFrameUnit in 'Forms\ChatBubbleFrameUnit.pas' {ChatBubbleFrame: TFrame};
+  ChatBubbleFrameUnit in 'Forms\ChatBubbleFrameUnit.pas' {ChatBubbleFrame: TFrame},
+  ErrorHandlerUnit in 'Utils\ErrorHandlerUnit.pas',
+  UIFormResizable in 'Interfaces\UIFormResizable.pas';
 
 {$R *.res}
 
@@ -26,10 +30,19 @@ begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   TStyleManager.TrySetStyle('Sky');
-  Application.Title := 'Connexall Application';
-  TWebSocketClient.Instance.Connect;
+  Application.Title := 'Kiosk-Care Application';
+
+  try
+    TWebSocketClient.Instance.Connect;
+  except
+    on E: Exception do
+    begin
+      TErrorHandler.Log(E);
+      ShowMessage('Could not connect to WebSocket: ' + E.Message);
+    end;
+  end;
+
   Application.CreateForm(TMainForm, MainForm);
-  Application.CreateForm(TStartVerificationForm, StartVerificationForm);
-  //  Application.CreateForm(TAIChatForm, AIChatForm);
+  Application.OnException := TErrorHandler.HandleException;
   Application.Run;
 end.

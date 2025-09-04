@@ -45,16 +45,11 @@ constructor TPatient.Create;
 begin
   inherited Create;
   FPatientID := -1;
-  FFirstName := '';
-  FLastName := '';
-  FPhoneNumber := '';
-  FAddress := '';
-  FEmail := '';
-  FDateOfBirth := 0;
 end;
 
 constructor TPatient.Create(APatientID: Integer; const AFirstName, ALastName, APhoneNumber, AAddress, AEmail: string; ADateOfBirth: TDateTime);
 begin
+  inherited Create;
   if APatientID <= 0 then
     raise Exception.Create('Invalid Patient ID.');
   if AFirstName.Trim.IsEmpty or ALastName.Trim.IsEmpty then

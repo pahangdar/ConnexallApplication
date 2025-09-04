@@ -1,7 +1,7 @@
 object CheckInForm: TCheckInForm
   Left = 0
   Top = 0
-  Caption = 'Patient / Check In'
+  Caption = 'Check In'
   ClientHeight = 692
   ClientWidth = 582
   Color = clBtnFace
@@ -11,7 +11,7 @@ object CheckInForm: TCheckInForm
   Font.Name = 'Segoe UI'
   Font.Style = []
   FormStyle = fsMDIChild
-  Position = poDefault
+  Position = poDesktopCenter
   Visible = True
   OnClose = FormClose
   OnCreate = FormCreate

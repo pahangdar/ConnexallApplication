@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{10D504F6-43E0-4828-89ED-41E70FD9935F}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="KioskCareUnitTest.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="KioskCare.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="KioskCareUnitTest">
+        <MSBuild Projects="KioskCareUnitTest.dproj"/>
+    </Target>
+    <Target Name="KioskCareUnitTest:Clean">
+        <MSBuild Projects="KioskCareUnitTest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="KioskCareUnitTest:Make">
+        <MSBuild Projects="KioskCareUnitTest.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="KioskCare">
+        <MSBuild Projects="KioskCare.dproj"/>
+    </Target>
+    <Target Name="KioskCare:Clean">
+        <MSBuild Projects="KioskCare.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="KioskCare:Make">
+        <MSBuild Projects="KioskCare.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="KioskCareUnitTest;KioskCare"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="KioskCareUnitTest:Clean;KioskCare:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="KioskCareUnitTest:Make;KioskCare:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

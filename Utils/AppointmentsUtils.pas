@@ -2,7 +2,7 @@ unit AppointmentsUtils;
 
 interface
 
-uses AppointmentUnit, System.SysUtils;
+uses AppointmentUnit, System.SysUtils, TypInfo;
 
 function AppointmentStatusToString(Status: TAppointmentStatus): string;
 function StringToAppointmentStatus(StatusString: string): TAppointmentStatus;
@@ -27,24 +27,35 @@ begin
   else
     Result := 'UnKnown';
   end;
+//  Result := GetEnumName(TypeInfo(TAppointmentStatus), Ord(Status));
 end;
 
 function StringToAppointmentStatus(StatusString: string): TAppointmentStatus;
+var
+//  Value: Integer;
+  CheckString: string;
 begin
-  if StatusString = 'Pending' then
+  CheckString := Trim(StatusString);
+  if CheckString = 'Pending' then
     Result := asPending
-  else if StatusString = 'Confirming' then
+  else if CheckString = 'Confirming' then
     Result := asConfirming
-  else if StatusString = 'Confirmed' then
+  else if CheckString = 'Confirmed' then
     Result := asConfirmed
-  else if StatusString = 'Not Confirmed' then
+  else if CheckString = 'Not Confirmed' then
     Result := asNotConfirmed
-  else if StatusString = 'Cancelled' then
+  else if CheckString = 'Cancelled' then
     Result := asCancelled
-  else if StatusString = 'Completed' then
+  else if CheckString = 'Completed' then
     Result := asCompleted
   else
-    raise Exception.CreateFmt('Unknown appointment status: %s', [StatusString]);
+    raise Exception.CreateFmt('Unknown appointment status: %s', [CheckString]);
+//  CheckString := 'as' + Trim(StatusString);
+//  Value := GetEnumValue(TypeInfo(TAppointmentStatus), CheckString);
+//  if Value < 0 then
+//    raise Exception.CreateFmt('Unknown appointment status: %s', [StatusString]);
+//
+//  Result := TAppointmentStatus(Value);
 end;
 
 end.

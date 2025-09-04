@@ -59,7 +59,6 @@ object StartVerificationForm: TStartVerificationForm
     Kind = bkCancel
     NumGlyphs = 2
     TabOrder = 1
-    OnClick = BitBtnCancelClick
   end
   object BitBtnStart: TBitBtn
     Left = 306
@@ -69,6 +68,7 @@ object StartVerificationForm: TStartVerificationForm
     Anchors = [akTop, akRight]
     Caption = 'Start'
     Default = True
+    ModalResult = 1
     NumGlyphs = 2
     TabOrder = 2
     OnClick = BitBtnStartClick

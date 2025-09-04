@@ -42,16 +42,12 @@ constructor TDoctor.Create;
 begin
   inherited Create;
   FDoctorID := -1;
-  FFirstName := '';
-  FLastName := '';
-  FSpecialization := '';
-  FPhoneNumber := '';
-  FEmail := '';
 end;
 
 constructor TDoctor.Create(ADoctorID: Integer;const AFirstName, ALastName, ASpecialization, APhoneNumber, AEmail: string);
 begin
-    if ADoctorID <= 0 then
+  inherited Create;
+  if ADoctorID <= 0 then
     raise Exception.Create('Invalid Doctor ID.');
   if AFirstName.Trim.IsEmpty or ALastName.Trim.IsEmpty then
     raise Exception.Create('First name and last name cannot be empty.');

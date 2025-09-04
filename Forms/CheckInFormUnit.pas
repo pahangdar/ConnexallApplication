@@ -10,10 +10,11 @@ uses
   sgcWebSocket_Client, sgcWebSocket, System.Math, DBGridEhGrouping, ToolCtrlsEh,
   DBGridEhToolCtrls, DynVarsEh, EhLibVCL, GridsEh, DBAxisGridsEh, DBGridEh,
   Data.DB, Datasnap.DBClient, Vcl.Menus,
-  AppointmentsUtils, WebSocketClientUnit, AppointmentTabUnit, EventManagerUnit, NotificationFormUnit;
+  AppointmentsUtils, WebSocketClientUnit, AppointmentTabUnit, EventManagerUnit, NotificationFormUnit,
+  UIFormResizable;
 
 type
-  TCheckInForm = class(TForm)
+  TCheckInForm = class(TForm, IResizableForm)
     PanelOptions: TPanel;
     DateTimePicker: TDateTimePicker;
     Label1: TLabel;
@@ -73,7 +74,7 @@ type
   end;
 
 var
-  CheckInForm: TCheckInForm;
+  CheckInForm: TForm;
 
 implementation
 
@@ -95,7 +96,16 @@ begin
   if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
   begin
     NewStatusStr := AppointmentStatusToString(NewStatus);
-    Result := TAppointmentsAPI.UpdateAppointmentStatus(AppointmentID, NewStatusStr);
+    try
+      Result := TAppointmentsAPI.UpdateAppointmentStatus(AppointmentID, NewStatusStr);
+    except
+      on E: Exception do
+      begin
+        ShowMessage('Failed to update status: ' + E.Message);
+        Exit;
+      end;
+    end;
+
     if Result then
     begin
       ClientDataSet.Edit;
@@ -144,7 +154,16 @@ begin
   for Status := Low(TAppointmentStatus) to High(TAppointmentStatus) do
     CountByStatus[Status] := 0;
 
-  Appointments := TAppointmentsAPI.GetAppointmentsByDate(ADate);
+  try
+    Appointments := TAppointmentsAPI.GetAppointmentsByDate(ADate);
+  except
+    on E: Exception do
+    begin
+      ShowMessage('Failed to load appointments: ' + E.Message);
+      Exit;
+    end;
+  end;
+
   try
     for Appointment in Appointments do
       Inc(CountByStatus[Appointment.Status]);
@@ -154,14 +173,21 @@ begin
          AppointmentTabs[Status].RecordCount := CountByStatus[Status];
 
     LoadAppointments(Appointments);
-    self.LabelTotal.Caption := Format('Total Appointments: %d', [Appointments.Count]);
-    self.ClientDataSet.First;
-
+    LabelTotal.Caption := Format('Total Appointments: %d', [Appointments.Count]);
+    ClientDataSet.First;
   finally
     Appointments.Free;
   end;
 
-  WebSocketClient.WorkingDate := DateTimePicker.DateTime;
+  if WebSocketClient.IsConnected then
+  begin
+    try
+      WebSocketClient.WorkingDate := ADate;
+    except
+      on E: Exception do
+        ShowMessage('Failed to update working date: ' + E.Message);
+    end;
+  end;
 end;
 
 procedure TCheckInForm.miConfirmedCompleteClick(Sender: TObject);
@@ -189,65 +215,94 @@ var
   AppointmentID: Integer;
   Appointment: TAppointment;
   Success: Boolean;
+  StartVerificationForm: TStartVerificationForm;
 begin
   if WebSocketClient.AppID = '' then
   begin
-    ShowMessage('Error, Connection to Server is not ready!');
-    exit;
+    ShowMessage('Error, Connection to WebSocket  Server is not ready!');
+    Exit;
   end;
 
-  AppointmentID := self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
+  AppointmentID := Self.ClientDataSet.FieldByName('AppointmentID').AsInteger;
   if AppointmentID = 0 then
     Exit;
 
-  Appointment := TAppointment.Create;
-  Appointment := TAppointmentsAPI.GetAppointmentByID(AppointmentID);
-  if Appointment.Status <> asPending then
-  begin
-    ShowMessage('Error: Sttus of this appointment is changed before');
-    LoadAppointmentsForSelectedDate(DateTimePicker.Date);
-    Appointment.Free;
-    exit;
-  end;
 
+  Appointment := nil;
   try
-    // Show kiosk selection form
-    with StartVerificationForm do
-    begin
-      LabelPatientName.Caption := Appointment.Patient.GetFullName;
-      PopulateKioskList(WebSocketClient.KioskList);
-      ShowModal;
-      if Confirmed and (SelectedKiosk <> '') then
+    try
+      Appointment := TAppointmentsAPI.GetAppointmentByID(AppointmentID);
+    except
+      on E: Exception do
       begin
-        Success := WebSocketClient.StartVerification(
-          Appointment.AppointmentID,
-          WebSocketClient.AppID,
-          SelectedKiosk,
-          Appointment.Patient
-        );
-        if Success then
-        begin
-          if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
-            UpdateAppointmentSelectedStatus(asPending, asConfirming);
-        end
-        else
-          ShowMessage('Error: Verification has not started on the Kiosk');
+        ShowMessage('Failed to load appointment: ' + E.Message);
+        Exit;
       end;
     end;
+
+    if Appointment.Status <> asPending then
+    begin
+      ShowMessage('Error: Status of this appointment has already changed.');
+      LoadAppointmentsForSelectedDate(DateTimePicker.Date);
+      Exit;
+    end;
+
+    StartVerificationForm := TStartVerificationForm.Create(Self);
+    try
+      StartVerificationForm.LabelPatientName.Caption := Appointment.Patient.GetFullName;
+      StartVerificationForm.PopulateKioskList(WebSocketClient.KioskList);
+
+      if StartVerificationForm.ShowModal = mrOk then
+      begin
+        if (StartVerificationForm.SelectedKiosk <> '') then
+        begin
+          try
+            Success := WebSocketClient.StartVerification(
+              Appointment.AppointmentID,
+              WebSocketClient.AppID,
+              StartVerificationForm.SelectedKiosk,
+              Appointment.Patient
+            );
+          except
+            on E: Exception do
+            begin
+              ShowMessage('Could not start verification: ' + E.Message);
+              Success := False;
+            end;
+          end;
+
+          if Success then
+          begin
+            if ClientDataSet.Locate('AppointmentID', AppointmentID, []) then
+              UpdateAppointmentSelectedStatus(asPending, asConfirming);
+          end
+          else
+            ShowMessage('Error: Verification has not started on the Kiosk.');
+        end;
+      end;
+    finally
+      StartVerificationForm.Free;
+    end;
+
   finally
     Appointment.Free;
   end;
 end;
 
+// UI updates from WebSocket callbacks — ensure main-thread safety
 procedure TCheckInForm.HandleKioskListChanged(Sender: TObject);
 begin
-  FlowPanelKiosksStatus.DisableAlign;
-  try
-    ClearKioskPanels;
-    AddKioskPanels;
-  finally
-    FlowPanelKiosksStatus.EnableAlign;
-  end;
+  TThread.Queue(nil,
+    procedure
+    begin
+      FlowPanelKiosksStatus.DisableAlign;
+      try
+        ClearKioskPanels;
+        AddKioskPanels;
+      finally
+        FlowPanelKiosksStatus.EnableAlign;
+      end;
+    end);
 end;
 
 procedure TCheckInForm.ClearKioskPanels;
@@ -265,6 +320,14 @@ var
   KioskPanel: TPanel;
   KioskShape: TShape;
   KioskLabel: TLabel;
+
+  function KioskStatusColor(const S: string): TColor;
+  begin
+    if SameText(S, 'waiting') then Exit(clGreen);
+    if SameText(S, 'busy') then Exit(clRed);
+    // default/unknown
+    Result := clGray;
+  end;
 begin
   for I := 0 to WebSocketClient.KioskList.Count - 1 do
   begin
@@ -284,7 +347,7 @@ begin
     KioskShape.Top := 10;
     KioskShape.Width := 20;
     KioskShape.Height := 20;
-    KioskShape.Brush.Color := IfThen(Kiosk.Status = 'waiting', clGreen, clRed);
+    KioskShape.Brush.Color := KioskStatusColor(Kiosk.Status);
     KioskShape.Pen.Color := clBlack;
 
     KioskLabel := TLabel.Create(KioskPanel);
@@ -330,21 +393,31 @@ end;
 
 procedure TCheckInForm.HandleRecievedMessage(Sender: TObject; const Message: string);
 begin
-//  Memo1.Lines.Add(Message);
+//  MainForm.Memo1.Lines.Add(Message);
 end;
 
+// UI updates from WebSocket callbacks — ensure main-thread safety
 procedure TCheckInForm.HandleTableUpdated(Sender: TObject; const TableName: string; WorkingDate: TDateTime);
 begin
-  if (TableName.ToLower <> 'appointments') or ( WorkingDate <> DateTimePicker.Date) then
-    exit;
-  TNotificationForm.ShowAppNotification(Format('"%s" updated for date %s.', [TableName, DateToStr(WorkingDate)]));
-  LoadAppointmentsForSelectedDate(DateTimePicker.Date);
+  TThread.Queue(nil,
+    procedure
+    begin
+      if (TableName.ToLower <> 'appointments') or (Trunc(WorkingDate) <> Trunc(DateTimePicker.Date)) then
+        Exit;
+      TNotificationForm.ShowAppNotification(Format('"%s" updated for %s.', [TableName, DateToStr(WorkingDate)]));
+      LoadAppointmentsForSelectedDate(DateTimePicker.Date);
+    end);
 end;
 
+// UI updates from WebSocket callbacks — ensure main-thread safety
 procedure TCheckInForm.HandleAppIDAssigned(Sender: TObject);
 begin
-  HandleKioskListChanged(nil); // Initial update of kiosk list
-  CheckConnectionStatus;
+  TThread.Queue(nil,
+    procedure
+    begin
+      HandleKioskListChanged(nil);
+      CheckConnectionStatus;
+    end);
 end;
 
 procedure TCheckInForm.BitBtnConnectClick(Sender: TObject);
@@ -364,10 +437,18 @@ end;
 
 function TCheckInForm.FilterAppointmentsByStatus(const Status: string): Integer;
 begin
-  ClientDataSet.Filter := Format('Status = ''%s''', [Status]);
-  ClientDataSet.Filtered := True;
-  ClientDataSet.First;
-  Result := ClientDataSet.RecordCount;
+  try
+    ClientDataSet.Filter := Format('Status = ''%s''', [Status]);
+    ClientDataSet.Filtered := True;
+    ClientDataSet.First;
+    Result := ClientDataSet.RecordCount;
+  except
+    on E: Exception do
+    begin
+      ShowMessage('Failed to update status: ' + E.Message);
+      Result := -1;
+    end;
+  end;
 end;
 
 procedure TCheckInForm.LoadAppointments(Appointments: TObjectList<TAppointment>);
@@ -416,7 +497,8 @@ begin
   TEventManager.Instance.OnVerificationDone := nil;
   Action := caFree;
   CheckInForm := nil;
-  MainForm.ToolButtonCheckIn.Enabled := true;
+  if Assigned(MainForm) then
+    MainForm.ToolButtonCheckIn.Enabled := true;
 end;
 
 procedure TCheckInForm.SetupClientDataSet;
@@ -443,21 +525,22 @@ procedure TCheckInForm.CheckConnectionStatus;
 begin
   if not WebSocketClient.WebSocket.Active then
   begin
-    self.LabelConnectionStatus.Caption := 'Not Connected';
-    self.BitBtnConnect.Visible := true;
-    ShowMessage('Error on Connecting to Kiosks'' Server');
+    LabelConnectionStatus.Caption := 'Not Connected';
+    BitBtnConnect.Visible := true;
+    ShowMessage('Error on Connecting to WebSocket Server');
+    exit;
+  end;
+
+  if WebSocketClient.AppID = '' then
+  begin
+    LabelConnectionStatus.Caption := 'Not Registerd';
+    BitBtnConnect.Visible := true;
   end
   else
-    if WebSocketClient.AppID = '' then
-    begin
-      self.LabelConnectionStatus.Caption := 'Not Registerd';
-      self.BitBtnConnect.Visible := true;
-    end
-    else
-    begin
-      self.LabelConnectionStatus.Caption := 'Connected as: ' + WebSocketClient.AppID;
-      self.BitBtnConnect.Visible := false;
-    end;
+  begin
+    LabelConnectionStatus.Caption := 'Connected as: ' + WebSocketClient.AppID;
+    BitBtnConnect.Visible := false;
+  end;
 end;
 
 procedure TCheckInForm.FormCreate(Sender: TObject);
@@ -485,10 +568,10 @@ end;
 
 procedure TCheckInForm.SetFormSize;
 begin
-  CheckInForm.Width := 800;
-  CheckInForm.Height := MainForm.Height - 170;
-  CheckInForm.Top := 0;
-  CheckInForm.Left := MainForm.Width - CheckInForm.Width - 20;
+  Self.Width := 800;
+  Self.Height := MainForm.Height - 170;
+  Self.Top := 0;
+  Self.Left := MainForm.Width - Self.Width - 20;
 end;
 
 procedure TCheckInForm.FormShow(Sender: TObject);

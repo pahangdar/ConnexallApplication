@@ -1,4 +1,4 @@
-program ConnexallUnitTest;
+program KioskCareUnitTest;
 
 {$IFNDEF TESTINSIGHT}
 {$APPTYPE CONSOLE}
