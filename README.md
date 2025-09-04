@@ -88,9 +88,13 @@ git clone https://github.com/yourusername/kioskcare-desktop.git
 - **AI Queries:** AI chat converts natural language queries into SQL or API calls.
 
 ## Dependencies
-- [sgcWebSocket](https://www.skbkontur.ru/sgcwebsocket) – WebSocket communication.
-- [DBGridEh](https://github.com/TwoSummers/DBGridEh) – Advanced grid component for Delphi.
-- Delphi 11 IDE.
+- [sgcWebSocket](https://www.esegece.com/help/sgcWebSockets/#t=Introduction.htm) – WebSocket communication.
+- [DBGridEh](https://www.ehlib.com/en/list-of-components-and-classes) – Advanced grid component for Delphi.
+- Embarcadero Delphi 11
+- PostgreSQL / MS-SQL
+- Node.js (WebSocket Server)
+- .NET Core RESTful API
+- React.js (Kiosk Client App)
 
 ## Future Improvements
 - Add multi-language support.
