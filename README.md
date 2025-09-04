@@ -43,8 +43,6 @@ KioskCare is built using Delphi 11, following a modular architecture for easy ma
 ![Start Verification](screenshots/start_verification.png)
 ![Notification Example](screenshots/notification.png)
 
-> *Note: Include GIFs or additional images in a `screenshots` folder to visualize app workflows.*
-
 ## Installation / Setup
 1. Clone the repository:
 ```bash
@@ -54,13 +52,21 @@ git clone https://github.com/yourusername/kioskcare-desktop.git
 3. Ensure required packages are installed:
    - `sgcWebSocket`
    - `DBGridEh`
-4. Configure database/API connection in `config.ini`:
-```ini
-[API]
-BaseURL=http://localhost:5000
-APIKey=your-api-key
-```
-5. Compile and run the project.
+4. Ensure your **database** (PostgreSQL) is running.
+5. Set up `config.ini` with API endpoint and key:
+   ```ini
+   [API]
+   BaseURL=http://localhost:5000
+   APIKey=YOUR_API_KEY
+   ```
+6. Compile and run `KioskCare`.
+
+**Important:** Before running the desktop app, ensure all backend services are active:
+- Database server
+- WebSocket Server (Node.js)
+- RESTful API (.NET Core)
+- AI Natural Language Service
+- Kiosk Client App (React.js)
 
 ## Usage / How it Works
 1. Open the **Main Dashboard** to view today's appointments.
